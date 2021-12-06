@@ -50,20 +50,20 @@ Latitude1<- ncvar_get(Pdat, "Y")
 
 sst.time<- nc.get.time.series(nc_data, v="anom", time.dim.name = "time")
 
-
+## Pull out Temp and Precip data
 SST<- ncvar_get(nc_data, "anom")
 dim(SST)
 Precipdat <- ncvar_get(Pdat, "rain")
 dim(Precipdat)
 
+## Set up some other handy vectors for Temp data
 SSTLongLat <- data.frame(expand.grid(longitude, latitude))
 colnames(SSTLongLat) <- c("Longitude", "Latitude")
 chartime <- paste0("Months", time)
 charlonglat <- paste0("Long", SSTLongLat$Longitude, "Lat", SSTLongLat$Latitude)
 
-# SSTtimewide <- matrix(NA, nrow(SSTLongLat), length(chartime))
-# SSTtimewide <- data.frame(SSTLatLong, SSTtimewide)
 
+## Convert Temp data from array to time-wide data frame
 SSTtimewide <- as.data.frame.table(SST)
 SSTtimewide <- pivot_wider(SSTtimewide, names_from = "Var3", values_from = "Freq")
 SSTtimewide <- data.frame(SSTLongLat, SSTtimewide[, -c(1,2)])
