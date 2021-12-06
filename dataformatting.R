@@ -59,6 +59,7 @@ dim(Precipdat)
 SSTLongLat <- data.frame(expand.grid(longitude, latitude))
 colnames(SSTLongLat) <- c("Longitude", "Latitude")
 chartime <- paste0("Months", time)
+charlonglat <- paste0("Long", SSTLongLat$Longitude, "Lat", SSTLongLat$Latitude)
 
 # SSTtimewide <- matrix(NA, nrow(SSTLongLat), length(chartime))
 # SSTtimewide <- data.frame(SSTLatLong, SSTtimewide)
