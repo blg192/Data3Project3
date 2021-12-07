@@ -11,6 +11,7 @@ library(ggplot2) # package for plotting
 library(ncdf4.helpers)
 library(PCICt)
 library(lubridate)
+library(dplyr)
 
 # Set working directory to the one containing this file
 setwd(dirname(rstudioapi::getSourceEditorContext()$path))
@@ -82,9 +83,9 @@ plot(brick.dat)
 
 # Converting Pdat data to data frames #######################################
 
-Pdat_dates = as.Date('1960-01-01') %m+% months(floor(time))
+Pdat_dates_raw = as.Date('1960-01-01') %m+% months(floor(time))
 
-Pdat_dates = paste0(month(ymd(Pdat_dates), label = TRUE), year(Pdat_dates))
+Pdat_dates = paste0(month(ymd(Pdat_dates_raw), label = TRUE), year(Pdat_dates_raw))
 
 pdat_brick <- brick('Pdata_011948_022018-1.nc')
 plot(pdat_brick[[1]])
@@ -108,9 +109,9 @@ names(Pdat_df) = c("long", "lat", Pdat_dates)
 
 # Converting SST data to data frames #######################################
 
-SST_dates = as.Date('1960-01-01') %m+% months(floor(time1))
+SST_dates_raw = as.Date('1960-01-01') %m+% months(floor(time1))
 
-SST_dates = paste0(month(ymd(SST_dates), label = TRUE), year(SST_dates))
+SST_dates = paste0(month(ymd(SST_dates_raw), label = TRUE), year(SST_dates_raw))
 
 plot(brick.dat[[1]])
 
@@ -136,11 +137,96 @@ names(SST_df) = c("long", "lat", SST_dates)
 load("data_in_dfs.RData")
 
 
+# Climatology Predictions (average of all previous months) ##############
+
+# All months through 2016
+Pdat_df_train = Pdat_df[,1:grep(pattern = "Dec2016", x = names(Pdat_df))]
+
+# All months in 2017 only
+Pdat_df_test = Pdat_df[, c(grep(pattern = "2017", x = names(Pdat_df)))]
+Pdat_df_test = cbind(Pdat_df[,c("long", "lat")], Pdat_df_test)
+
+# Predict using climatology method (average of all previous months)
+Pdat_df_preds = data.frame(Pdat_df_train[,c("long", "lat")])
+for(i in month.abb) {
+  Pdat_df_preds[, paste0(i, "2017pred")] =
+    rowMeans(Pdat_df_train[, grep(pattern = i,
+                                  x = names(Pdat_df_train))])
+}
+
+# MSE from climatology predictions (average of all previous months)
+MSE_clim = vector()
+for(i in month.abb) {
+  MSE_clim[i] = colMeans(((Pdat_df_test[grep(pattern = i,
+                                        x = names(Pdat_df_test))] -
+                        Pdat_df_preds[, grep(pattern = i,
+                                             x = names(Pdat_df_preds))]) ^ 2),
+                    na.rm = TRUE)
+}
+
+# Plot of the January predictions
+Jan2017Pred_raster <- rasterFromXYZ(Pdat_df_preds[, c("long", "lat", "Jan2017pred")])
+plot(Jan2017Pred_raster)
+
+# Plot of the January true values
+Jan2017True_raster <- rasterFromXYZ(Pdat_df_test[, c("long", "lat", "Jan2017")])
+plot(Jan2017True_raster)
 
 
 
 
+library(maps)
+library(fields)
+state_map = map_data("state")
+bmap = map_data("state")
 
+
+# Fancy plots
+ggplot() +
+  coord_fixed(ratio = 1) +
+  geom_raster(data = Pdat_df_preds,
+              aes(x = long, y = lat, fill = May2017pred),
+              alpha = 1) +
+  geom_polygon(
+    data = bmap,
+    aes(x = long, y = lat, group = group),
+    inherit.aes = F,
+    colour = 'black',
+    fill = NA,
+    lwd = 0.5
+  ) +
+  scale_fill_gradientn(
+    na.value = "white",
+    # Limits need to be updated accordingly
+    limits = c(min(Pdat_df_preds$May2017pred) - 0.5, 
+               max(Pdat_df_preds$May2017pred) + 0.5),
+    colours = c("blue", "green", "orange", "yellow")
+  )+
+  theme(
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(colour = "black",
+                                fill = NA,
+                                size = 0.5),
+    panel.background = element_blank()
+  ) + 
+  labs(fill = "Precipication \nUnits", 
+       title = "May 2017 Predicted Precipitation")
+
+
+
+
+# Persistence Predictions (pred_(t + tau) = pred_t) ##############
+
+
+# Need to define how far out we want tau to be
+# Project document suggests 6 months?
 
 
 
