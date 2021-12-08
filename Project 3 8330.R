@@ -295,10 +295,3 @@ ggplot(data=as.data.frame(msemat), aes(x=tau, y=mse, group=1)) +
   xlab("tau: Number of Months Ahead of Prediction") +
   ylab("Test MSE") +
   labs(title = "Test MSE for Varying Values of tau")
-
-
-
-
-
-
-
