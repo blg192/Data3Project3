@@ -144,3 +144,28 @@ baseplot <- ggplot(data = data.frame(LLEpcs, LLEclustout), aes(x = LLEpcs[, 1], 
 
 baseplot + geom_point() + form + xlab('Principal Component 1') + 
     ylab('Principal Component 2') + ggtitle('Plot of LLE Clustering for First Two PCs')
+
+## Laplacian Eigenmaps (I don't think this is a good option for clustering regions on. But would be good for a spatial wide data set)
+
+LE <- embed(MonthlySST, .method = 'LaplacianEigenmaps')
+LEout <- data.frame(Obs = 1:2512, LE@data@data)
+
+## Cluster for Eigenmap
+## Cluster for LLE
+set.seed(662321)
+LEbestK <- NbClust(LEout, method = 'kmeans',  min.nc = 2, max.nc = 20, index = "all")
+par(mfrow = c(1,1))
+LEbestK2 <- sapply(1:20, 
+                    function(k){kmeans(Ymat, k, nstart=50,iter.max = 15 )$tot.withinss})
+set.seed(662321)
+LEclustres <- kmeans(LEout, 2, nstart = 20, iter.max = 15) ## suggests 2 or 3 clusters
+LEclustout <- factor(LEclustres$cluster)
+
+LEclust_raster <- rasterFromXYZ(cbind(LongLat, LEclustout))
+plot(LEclust_raster)
+
+
+baseplot <- ggplot(data = data.frame(LEout, LEclustout), aes(x = LEout[, 1], y = LEout[, 2], color = LEclustout))
+
+baseplot + geom_point() + form + xlab('Principal Component 1') + 
+    ylab('Principal Component 2') + ggtitle('Plot of LE Clustering for First Two PCs')
