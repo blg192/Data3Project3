@@ -64,7 +64,7 @@ colnames(SSTUD) <- c('Long', 'Lat', paste0('PC', 1:33))
 
 ## Plot PC 1
 PC1_raster <- rasterFromXYZ(SSTUD[, c(1, 2, 3)])
-plot(SST_raster)
+plot(PC1_raster)
 
 ## Cluster with SVD
 
@@ -169,3 +169,66 @@ baseplot <- ggplot(data = data.frame(LEout, LEclustout), aes(x = LEout[, 1], y =
 
 baseplot + geom_point() + form + xlab('Principal Component 1') + 
     ylab('Principal Component 2') + ggtitle('Plot of LE Clustering for First Two PCs')
+
+
+
+
+## Precip PCAs
+## Precip Data
+## Format for ease of use
+Pdat_df <- na.omit(Pdat_df)
+Pdat_df <- apply(Pdat_df, 2, as.numeric)
+LongLat2 <- Pdat_df[, 1:2]
+MonthlyPrecip <- Pdat_df[ , -c(1,2)]
+
+## Start with SVD to get an idea of Prin Comp needed
+PrecipSVD <- svd(MonthlyPrecip)
+Precipsingvals <- matrix(NA, nrow = 842, ncol = 2)
+Precipsingvals[, 1] <- 1:842
+Precipsingvals[, 2] <- PrecipSVD$d
+cumsum(PrecipSVD$d[1:26]^2)/sum(PrecipSVD$d^2)*100
+
+## Set up random data
+set.seed(374378)
+rand2 <- matrix(NA, 5390, 842)
+for (i in 1:842) {
+    rand2[ , i] <- MonthlyPrecip[sample(nrow(MonthlyPrecip)), i]
+}
+
+rand2decomp <- svd(rand2)
+Precipsingvals <- cbind(Precipsingvals, as.numeric(rand2decomp$d))
+
+## Suggests 26 PCs (95.6% Var)
+plot(Precipsingvals[1:150, 1], Precipsingvals[1:150, 2], type = 'l', xlab = 'Component Number', 
+     ylab = 'Singular Value', main = 'Randomized Data Comparison')
+lines(Precipsingvals[1:150, 3], type = 'l', col = 'blue')
+legend(100, 500, c('Real Trace', 'Random Trace'), fill = c('black', 'blue'))
+
+## PC DF
+PrecipUD <- PrecipSVD$u %*% diag(PrecipSVD$d)
+PrecipUD <- cbind(LongLat2, PrecipUD[ , -c(27:842)])
+colnames(PrecipUD) <- c('Long', 'Lat', paste0('PC', 1:26))
+
+## Plot PC 1
+PC1_raster <- rasterFromXYZ(PrecipUD[, c(1, 2, 3)])
+plot(PC1_raster)
+
+## Cluster with SVD (NOT WORKING YET)
+
+## Options for assessing number of clusters
+set.seed(629787)
+PSVDbestK <- NbClust(PrecipUD[, -c(1,2)], method = 'kmeans',  min.nc = 2, max.nc = 20, index = "all")
+par(mfrow = c(1,1))
+PSVDbestK2 <- sapply(1:20, 
+                    function(k){kmeans(PrecipUD[, -c(1,2)], k, nstart=50,iter.max = 15 )$tot.withinss})
+set.seed(629787)
+PSVDclustres <- kmeans(PrecipUD[, -c(1, 2)], 2, nstart = 20, iter.max = 15)
+PSVDclustout <- factor(Precipclustres$cluster)
+
+PSVDclust_raster <- rasterFromXYZ(cbind(LongLat, PSVDclustout))
+plot(PSVDclust_raster)
+
+baseplot <- ggplot(data = data.frame(PrecipUD, PSVDclustout), aes(x = PC1, y = PC2, color = PSVDclustout))
+
+baseplot + geom_point() + form + xlab('Principal Component 1') + 
+    ylab('Principal Component 2') + ggtitle('Plot of Clustering for First Two PCs')
