@@ -81,6 +81,7 @@ SVDclustout <- factor(SVDclustres$cluster)
 SVDclust_raster <- rasterFromXYZ(cbind(LongLat, SVDclustout))
 plot(SVDclust_raster)
 
+## Make sure to run this line for GGPlots
 form <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
               panel.background = element_blank(), axis.line = element_line(colour = "black"))
 
@@ -217,18 +218,47 @@ plot(PC1_raster)
 
 ## Options for assessing number of clusters
 set.seed(629787)
-PSVDbestK <- NbClust(PrecipUD[, -c(1,2)], method = 'kmeans',  min.nc = 2, max.nc = 20, index = "all")
+PSVDbestK <- NbClust(PrecipUD[, -c(1,2)], method = 'kmeans',  min.nc = 2, max.nc = 15, index = "all")
 par(mfrow = c(1,1))
 PSVDbestK2 <- sapply(1:20, 
-                    function(k){kmeans(PrecipUD[, -c(1,2)], k, nstart=50,iter.max = 15 )$tot.withinss})
+                    function(k){kmeans(PrecipUD[, -c(1,2)], k, nstart=50,iter.max = 20)$tot.withinss})
 set.seed(629787)
-PSVDclustres <- kmeans(PrecipUD[, -c(1, 2)], 2, nstart = 20, iter.max = 15)
-PSVDclustout <- factor(Precipclustres$cluster)
+PSVDclustres <- kmeans(PrecipUD[, -c(1, 2)], 4, nstart = 20, iter.max = 20) ## 2 or 4 suggested as best
+PSVDclustout <- factor(PSVDclustres$cluster)
 
-PSVDclust_raster <- rasterFromXYZ(cbind(LongLat, PSVDclustout))
+PSVDclust_raster <- rasterFromXYZ(cbind(LongLat2, PSVDclustout))
 plot(PSVDclust_raster)
 
 baseplot <- ggplot(data = data.frame(PrecipUD, PSVDclustout), aes(x = PC1, y = PC2, color = PSVDclustout))
 
 baseplot + geom_point() + form + xlab('Principal Component 1') + 
     ylab('Principal Component 2') + ggtitle('Plot of Clustering for First Two PCs')
+
+## KPCA
+Pkpca1 <- kpca(MonthlyPrecip, kernel = "rbfdot", kpar = list(sigma = .005)) ## Hard to beat the SVD with reduction
+Pkpca2 <- kpca(MonthlyPrecip, kernel = "vanilladot", kpar = list()) ##maybe 2-4 PCs? Better than Random suggests 25
+Pkpca3 <- kpca(MonthlyPrecip, kernel = "laplacedot", kpar = list(sigma = .01)) ##Maybe similar to SVD
+cumsum(Pkpca1@eig[1:26]^2)/sum(Pkpca1@eig^2)*100
+
+Pkpcarand2 <- kpca(rand2, kernel = "vanilladot", kpar = list())
+
+PKPCApcs <- Pkpca2@pcv[ , 1:4]
+
+## Cluster for KPCA
+set.seed(662321)
+PKPCAbestK <- NbClust(PKPCApcs, method = 'kmeans',  min.nc = 2, max.nc = 20, index = "all")
+par(mfrow = c(1,1))
+PKPCAbestK2 <- sapply(1:20, 
+                     function(k){kmeans(PKPCApcs, k, nstart=50,iter.max = 15 )$tot.withinss})
+set.seed(662321)
+PKPCAclustres <- kmeans(PKPCApcs, 5, nstart = 20, iter.max = 15)
+PKPCAclustout <- factor(PKPCAclustres$cluster)
+
+PKPCAclust_raster <- rasterFromXYZ(cbind(LongLat2, PKPCAclustout))
+plot(PKPCAclust_raster)
+
+baseplot <- ggplot(data = data.frame(PKPCApcs, PKPCAclustout), aes(x = PKPCApcs[, 1], y = PKPCApcs[, 2], color = PKPCAclustout))
+
+baseplot + geom_point() + form + xlab('Principal Component 1') + 
+    ylab('Principal Component 2') + ggtitle('Plot of KPCA Clustering for First Two PCs')
+
