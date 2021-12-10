@@ -12,7 +12,7 @@ library(RSpectra)
 library(maps)
 library(fields)
 library(raster) 
-
+library(NbClust)
 
 ## Call Data
 load("data_in_dfs.RData")
@@ -64,7 +64,7 @@ colnames(SSTUD) <- c('Long', 'Lat', paste0('PC', 1:33))
 
 ## Plot PC 1
 PC1_raster <- rasterFromXYZ(SSTUD[, c(1, 2, 3)])
-plot(SST_raster)
+plot(PC1_raster)
 
 ## Cluster with SVD
 
@@ -74,12 +74,14 @@ SVDbestK <- NbClust(SSTUD[, -c(1,2)], method = 'kmeans',  min.nc = 2, max.nc = 2
 par(mfrow = c(1,1))
 SVDbestK2 <- sapply(1:20, 
                     function(k){kmeans(SSTUD[, -c(1,2)], k, nstart=50,iter.max = 15 )$tot.withinss})
+set.seed(662321)
 SVDclustres <- kmeans(SSTUD[, -c(1, 2)], 2, nstart = 20, iter.max = 15)
 SVDclustout <- factor(SVDclustres$cluster)
 
 SVDclust_raster <- rasterFromXYZ(cbind(LongLat, SVDclustout))
 plot(SVDclust_raster)
 
+## Make sure to run this line for GGPlots
 form <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
               panel.background = element_blank(), axis.line = element_line(colour = "black"))
 
@@ -90,5 +92,200 @@ baseplot + geom_point() + form + xlab('Principal Component 1') +
 
 ## KPCA
 kpca1 <- kpca(MonthlySST, kernel = "rbfdot", kpar = list(sigma = .03)) ## maybe change up sigma but doesn't seem good
-kpca2 <- kpca(MonthlySST, kernel = "vanilladot", kpar = list()) ##maybe 3-6 PCs?
-kpca3 <- kpca(MonthlySST, kernel = "laplacedot", kpar = list(sigma = .05)) ##9 - 14 PCs?
+kpca2 <- kpca(MonthlySST, kernel = "vanilladot", kpar = list()) ##maybe 3-6 PCs? Better than Random suggests 32
+kpca3 <- kpca(MonthlySST, kernel = "laplacedot", kpar = list(sigma = .03)) ##9 - 14 PCs?
+
+kpcarand <- kpca(rand, kernel = "vanilladot", kpar = list())
+
+KPCApcs <- kpca2@pcv[ , 1:6]
+
+## Cluster for KPCA
+set.seed(662321)
+KPCAbestK <- NbClust(KPCApcs, method = 'kmeans',  min.nc = 2, max.nc = 20, index = "all")
+par(mfrow = c(1,1))
+KPCAbestK2 <- sapply(1:20, 
+                    function(k){kmeans(KPCApcs, k, nstart=50,iter.max = 15 )$tot.withinss})
+set.seed(662321)
+KPCAclustres <- kmeans(KPCApcs, 5, nstart = 20, iter.max = 15)
+KPCAclustout <- factor(KPCAclustres$cluster)
+
+KPCAclust_raster <- rasterFromXYZ(cbind(LongLat, KPCAclustout))
+plot(KPCAclust_raster)
+
+
+baseplot <- ggplot(data = data.frame(KPCApcs, KPCAclustout), aes(x = KPCApcs[, 1], y = KPCApcs[, 2], color = KPCAclustout))
+
+baseplot + geom_point() + form + xlab('Principal Component 1') + 
+    ylab('Principal Component 2') + ggtitle('Plot of KPCA Clustering for First Two PCs')
+
+
+## LLE
+## Probably have to turn off parallel if using Windows, takes ages even with parallel
+kopt <- calc_k(MonthlySST, m = 2, kmin = 15, kmax = 30, parallel = TRUE, cpus = 3)
+
+## Opt K = 16 for 12, K = 15 for 2, not really sure how to pick m
+lleres <- lle(MonthlySST, m = 2, k = 16)
+Ymat <- data.frame(lleres$Y)
+
+## Cluster for LLE
+set.seed(662321)
+LLEbestK <- NbClust(Ymat, method = 'kmeans',  min.nc = 2, max.nc = 20, index = "all")
+par(mfrow = c(1,1))
+LLEbestK2 <- sapply(1:20, 
+                     function(k){kmeans(Ymat, k, nstart=50,iter.max = 15 )$tot.withinss})
+set.seed(662321)
+LLEclustres <- kmeans(Ymat, 10, nstart = 20, iter.max = 15)
+LLEclustout <- factor(LLEclustres$cluster)
+
+LLEclust_raster <- rasterFromXYZ(cbind(LongLat, LLEclustout))
+plot(LLEclust_raster)
+
+
+baseplot <- ggplot(data = data.frame(LLEpcs, LLEclustout), aes(x = LLEpcs[, 1], y = LLEpcs[, 2], color = LLEclustout))
+
+baseplot + geom_point() + form + xlab('Principal Component 1') + 
+    ylab('Principal Component 2') + ggtitle('Plot of LLE Clustering for First Two PCs')
+
+## Laplacian Eigenmaps (I don't think this is a good option for clustering regions on. But would be good for a spatial wide data set)
+
+LE <- embed(MonthlySST, .method = 'LaplacianEigenmaps')
+LEout <- data.frame(Obs = 1:2512, LE@data@data)
+
+## Cluster for Eigenmap
+## Cluster for LLE
+set.seed(662321)
+LEbestK <- NbClust(LEout, method = 'kmeans',  min.nc = 2, max.nc = 20, index = "all")
+par(mfrow = c(1,1))
+LEbestK2 <- sapply(1:20, 
+                    function(k){kmeans(Ymat, k, nstart=50,iter.max = 15 )$tot.withinss})
+set.seed(662321)
+LEclustres <- kmeans(LEout, 2, nstart = 20, iter.max = 15) ## suggests 2 or 3 clusters
+LEclustout <- factor(LEclustres$cluster)
+
+LEclust_raster <- rasterFromXYZ(cbind(LongLat, LEclustout))
+plot(LEclust_raster)
+
+
+baseplot <- ggplot(data = data.frame(LEout, LEclustout), aes(x = LEout[, 1], y = LEout[, 2], color = LEclustout))
+
+baseplot + geom_point() + form + xlab('Principal Component 1') + 
+    ylab('Principal Component 2') + ggtitle('Plot of LE Clustering for First Two PCs')
+
+
+
+
+## Precip PCAs
+## Precip Data
+## Format for ease of use
+Pdat_df <- na.omit(Pdat_df)
+Pdat_df <- apply(Pdat_df, 2, as.numeric)
+LongLat2 <- Pdat_df[, 1:2]
+MonthlyPrecip <- Pdat_df[ , -c(1,2)]
+
+## Start with SVD to get an idea of Prin Comp needed
+PrecipSVD <- svd(MonthlyPrecip)
+Precipsingvals <- matrix(NA, nrow = 842, ncol = 2)
+Precipsingvals[, 1] <- 1:842
+Precipsingvals[, 2] <- PrecipSVD$d
+cumsum(PrecipSVD$d[1:26]^2)/sum(PrecipSVD$d^2)*100
+
+## Set up random data
+set.seed(374378)
+rand2 <- matrix(NA, 5390, 842)
+for (i in 1:842) {
+    rand2[ , i] <- MonthlyPrecip[sample(nrow(MonthlyPrecip)), i]
+}
+
+rand2decomp <- svd(rand2)
+Precipsingvals <- cbind(Precipsingvals, as.numeric(rand2decomp$d))
+
+## Suggests 26 PCs (95.6% Var)
+plot(Precipsingvals[1:150, 1], Precipsingvals[1:150, 2], type = 'l', xlab = 'Component Number', 
+     ylab = 'Singular Value', main = 'Randomized Data Comparison')
+lines(Precipsingvals[1:150, 3], type = 'l', col = 'blue')
+legend(100, 500, c('Real Trace', 'Random Trace'), fill = c('black', 'blue'))
+
+## PC DF
+PrecipUD <- PrecipSVD$u %*% diag(PrecipSVD$d)
+PrecipUD <- cbind(LongLat2, PrecipUD[ , -c(27:842)])
+colnames(PrecipUD) <- c('Long', 'Lat', paste0('PC', 1:26))
+
+## Plot PC 1
+PC1_raster <- rasterFromXYZ(PrecipUD[, c(1, 2, 3)])
+plot(PC1_raster)
+
+## Cluster with SVD (NOT WORKING YET)
+
+## Options for assessing number of clusters
+set.seed(629787)
+PSVDbestK <- NbClust(PrecipUD[, -c(1,2)], method = 'kmeans',  min.nc = 2, max.nc = 15, index = "all")
+par(mfrow = c(1,1))
+PSVDbestK2 <- sapply(1:20, 
+                    function(k){kmeans(PrecipUD[, -c(1,2)], k, nstart=50,iter.max = 20)$tot.withinss})
+set.seed(629787)
+PSVDclustres <- kmeans(PrecipUD[, -c(1, 2)], 4, nstart = 20, iter.max = 20) ## 2 or 4 suggested as best
+PSVDclustout <- factor(PSVDclustres$cluster)
+
+PSVDclust_raster <- rasterFromXYZ(cbind(LongLat2, PSVDclustout))
+plot(PSVDclust_raster)
+
+baseplot <- ggplot(data = data.frame(PrecipUD, PSVDclustout), aes(x = PC1, y = PC2, color = PSVDclustout))
+
+baseplot + geom_point() + form + xlab('Principal Component 1') + 
+    ylab('Principal Component 2') + ggtitle('Plot of Clustering for First Two PCs')
+
+## KPCA
+Pkpca1 <- kpca(MonthlyPrecip, kernel = "rbfdot", kpar = list(sigma = .005)) ## Hard to beat the SVD with reduction
+Pkpca2 <- kpca(MonthlyPrecip, kernel = "vanilladot", kpar = list()) ##maybe 2-4 PCs? Better than Random suggests 25
+Pkpca3 <- kpca(MonthlyPrecip, kernel = "laplacedot", kpar = list(sigma = .01)) ##Maybe similar to SVD
+cumsum(Pkpca1@eig[1:26]^2)/sum(Pkpca1@eig^2)*100
+
+Pkpcarand2 <- kpca(rand2, kernel = "vanilladot", kpar = list())
+
+PKPCApcs <- Pkpca2@pcv[ , 1:4]
+
+## Cluster for KPCA
+set.seed(662321)
+PKPCAbestK <- NbClust(PKPCApcs, method = 'kmeans',  min.nc = 2, max.nc = 20, index = "all")
+par(mfrow = c(1,1))
+PKPCAbestK2 <- sapply(1:20, 
+                     function(k){kmeans(PKPCApcs, k, nstart=50,iter.max = 15 )$tot.withinss})
+## 12 Suggested
+set.seed(662321)
+PKPCAclustres <- kmeans(PKPCApcs, 12, nstart = 20, iter.max = 15)
+PKPCAclustout <- factor(PKPCAclustres$cluster)
+
+PKPCAclust_raster <- rasterFromXYZ(cbind(LongLat2, PKPCAclustout))
+plot(PKPCAclust_raster)
+
+baseplot <- ggplot(data = data.frame(PKPCApcs, PKPCAclustout), aes(x = PKPCApcs[, 1], y = PKPCApcs[, 2], color = PKPCAclustout))
+
+baseplot + geom_point() + form + xlab('Principal Component 1') + 
+    ylab('Principal Component 2') + ggtitle('Plot of KPCA Clustering for First Two PCs')
+
+## LLE
+## Probably have to turn off parallel if using Windows, takes ages even with parallel
+kopt2 <- calc_k(MonthlyPrecip, m = 2, kmin = 15, kmax = 30, parallel = TRUE, cpus = 3)
+
+## Opt K = 25 for 2
+Plleres <- lle(MonthlyPrecip, m = 2, k = 25)
+PYmat <- data.frame(lleres$Y)
+
+## Cluster for LLE
+set.seed(662321)
+PLLEbestK <- NbClust(PYmat, method = 'kmeans',  min.nc = 2, max.nc = 20, index = "all")
+par(mfrow = c(1,1))
+PLLEbestK2 <- sapply(1:20, 
+                    function(k){kmeans(PYmat, k, nstart=50,iter.max = 15 )$tot.withinss})
+set.seed(662321)
+PLLEclustres <- kmeans(PYmat, 10, nstart = 20, iter.max = 15)
+PLLEclustout <- factor(PLLEclustres$cluster)
+
+PLLEclust_raster <- rasterFromXYZ(cbind(LongLat2, PLLEclustout))
+plot(PLLEclust_raster)
+
+
+baseplot <- ggplot(data = data.frame(PLLEpcs, PLLEclustout), aes(x = PLLEpcs[, 1], y = PLLEpcs[, 2], color = PLLEclustout))
+
+baseplot + geom_point() + form + xlab('Principal Component 1') + 
+    ylab('Principal Component 2') + ggtitle('Plot of LLE Clustering for First Two PCs')
