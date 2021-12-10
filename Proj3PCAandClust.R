@@ -250,8 +250,9 @@ PKPCAbestK <- NbClust(PKPCApcs, method = 'kmeans',  min.nc = 2, max.nc = 20, ind
 par(mfrow = c(1,1))
 PKPCAbestK2 <- sapply(1:20, 
                      function(k){kmeans(PKPCApcs, k, nstart=50,iter.max = 15 )$tot.withinss})
+## 12 Suggested
 set.seed(662321)
-PKPCAclustres <- kmeans(PKPCApcs, 5, nstart = 20, iter.max = 15)
+PKPCAclustres <- kmeans(PKPCApcs, 12, nstart = 20, iter.max = 15)
 PKPCAclustout <- factor(PKPCAclustres$cluster)
 
 PKPCAclust_raster <- rasterFromXYZ(cbind(LongLat2, PKPCAclustout))
@@ -262,3 +263,29 @@ baseplot <- ggplot(data = data.frame(PKPCApcs, PKPCAclustout), aes(x = PKPCApcs[
 baseplot + geom_point() + form + xlab('Principal Component 1') + 
     ylab('Principal Component 2') + ggtitle('Plot of KPCA Clustering for First Two PCs')
 
+## LLE
+## Probably have to turn off parallel if using Windows, takes ages even with parallel
+kopt2 <- calc_k(MonthlyPrecip, m = 2, kmin = 15, kmax = 30, parallel = TRUE, cpus = 3)
+
+## Opt K = 25 for 2
+Plleres <- lle(MonthlyPrecip, m = 2, k = 25)
+PYmat <- data.frame(lleres$Y)
+
+## Cluster for LLE
+set.seed(662321)
+PLLEbestK <- NbClust(PYmat, method = 'kmeans',  min.nc = 2, max.nc = 20, index = "all")
+par(mfrow = c(1,1))
+PLLEbestK2 <- sapply(1:20, 
+                    function(k){kmeans(PYmat, k, nstart=50,iter.max = 15 )$tot.withinss})
+set.seed(662321)
+PLLEclustres <- kmeans(PYmat, 10, nstart = 20, iter.max = 15)
+PLLEclustout <- factor(PLLEclustres$cluster)
+
+PLLEclust_raster <- rasterFromXYZ(cbind(LongLat2, PLLEclustout))
+plot(PLLEclust_raster)
+
+
+baseplot <- ggplot(data = data.frame(PLLEpcs, PLLEclustout), aes(x = PLLEpcs[, 1], y = PLLEpcs[, 2], color = PLLEclustout))
+
+baseplot + geom_point() + form + xlab('Principal Component 1') + 
+    ylab('Principal Component 2') + ggtitle('Plot of LLE Clustering for First Two PCs')
