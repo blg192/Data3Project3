@@ -295,3 +295,90 @@ ggplot(data=as.data.frame(msemat), aes(x=tau, y=mse, group=1)) +
   xlab("tau: Number of Months Ahead of Prediction") +
   ylab("Test MSE") +
   labs(title = "Test MSE for Varying Values of tau")
+
+
+## categorizing data
+## categorize precip
+## categorize into "low", "normal", and "high"
+## base on quantiles ^^^
+## should do based on area in addition to overall
+
+library(tidyr)
+library(dplyr)
+## remove NAs
+Pdat_df_nar <- na.omit(Pdat_df)
+## matrix
+Pdat_df_nar_mat <- as.matrix(Pdat_df_nar)
+## long data set
+long_pdat <- gather(Pdat_df_nar, time, precip, 3:ncol(Pdat_df))
+
+## setting up categories straight up quantiles
+## this is just taking quantiles for all precipitation
+Pdat_all_quan <- quantile(Pdat_df_nar_mat[, 3:844])
+## split into "low", "normal", and "high"
+## low is 25% and lower
+## normal is 25% to 75%
+## high is 75% and higher
+l_pdat_all <- long_pdat %>% mutate(cat = 
+                                     case_when(precip <= Pdat_all_quan[2] ~ "low",
+                                               (precip < Pdat_all_quan[4]) & (precip > Pdat_all_quan[2]) ~ "normal",
+                                               precip >= Pdat_all_quan[4] ~ "high")
+)
+
+## setting up categories quantiles but after splitting up by time of year
+## split into seasons
+l_pdat_seasons <- long_pdat %>% mutate(season = 
+                                         case_when(
+                                           startsWith(time, "Jan") ~ "winter",
+                                           startsWith(time, "Feb") ~ "winter",
+                                           startsWith(time, "Mar") ~ "winter",
+                                           startsWith(time, "Apr") ~ "spring",
+                                           startsWith(time, "May") ~ "spring",
+                                           startsWith(time, "Jun") ~ "spring",
+                                           startsWith(time, "Jul") ~ "summer",
+                                           startsWith(time, "Aug") ~ "summer",
+                                           startsWith(time, "Sep") ~ "summer",
+                                           startsWith(time, "Oct") ~ "fall",
+                                           startsWith(time, "Nov") ~ "fall",
+                                           startsWith(time, "Dec") ~ "fall"
+                                         )
+)
+
+## quantiles by season
+sea_quant <- do.call("rbind",
+                     tapply(l_pdat_seasons$precip, # specify numeric column
+                            l_pdat_seasons$season, # specify group variable
+                            quantile))
+
+## data frame with data frame for each season
+seasons <- split(l_pdat_seasons, l_pdat_seasons$season)
+
+## classify each season by respective quantiles
+## split into "low", "normal", and "high"
+## low is 25% and lower
+## normal is 25% to 75%
+## high is 75% and higher
+## winter
+seasons$winter <- seasons$winter %>% mutate(cat = 
+                                              case_when(precip <= sea_quant[4, 2] ~ "low",
+                                                        (precip < sea_quant[4, 4]) & (precip > sea_quant[4, 2]) ~ "normal",
+                                                        precip >= sea_quant[4, 4] ~ "high")
+)
+## spring
+seasons$spring <- seasons$spring %>% mutate(cat = 
+                                              case_when(precip <= sea_quant[2, 2] ~ "low",
+                                                        (precip < sea_quant[2, 4]) & (precip > sea_quant[2, 2]) ~ "normal",
+                                                        precip >= sea_quant[2, 4] ~ "high")
+)
+## summer
+seasons$summer <- seasons$summer %>% mutate(cat = 
+                                              case_when(precip <= sea_quant[3, 2] ~ "low",
+                                                        (precip < sea_quant[3, 4]) & (precip > sea_quant[3, 2]) ~ "normal",
+                                                        precip >= sea_quant[3, 4] ~ "high")
+)
+## fall
+seasons$fall <- seasons$fall %>% mutate(cat = 
+                                          case_when(precip <= sea_quant[1, 2] ~ "low",
+                                                    (precip < sea_quant[1, 4]) & (precip > sea_quant[1, 2]) ~ "normal",
+                                                    precip >= sea_quant[1, 4] ~ "high")
+)
