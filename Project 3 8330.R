@@ -297,7 +297,35 @@ ggplot(data=as.data.frame(msemat), aes(x=tau, y=mse, group=1)) +
   labs(title = "Test MSE for Varying Values of tau")
 
 
-## categorizing data
+
+
+# Shrink SST data to remove NA values ##############
+
+# Missing data present
+which(is.na(SST_df))
+
+# Gather rectangular area with no missing values
+SST_df_rect = SST_df[which(SST_df$long < 246),]
+SST_df_rect = SST_df_rect[which(SST_df_rect$long > 152),]
+
+# Visual check that there are no missing observations
+monthName = "Mar2017"
+ggplot() +
+  coord_fixed(ratio = 1) +
+  geom_raster(data = SST_df_rect,
+              aes(x = long, y = lat, fill = SST_df_rect[, monthName]),
+              alpha = 1) +
+  scale_fill_gradientn(
+    na.value = "white",
+    # Limits need to be updated accordingly
+    limits = c(min(SST_df_rect[, monthName]) - 0.5,
+               max(SST_df_rect[, monthName]) + 0.5),
+    colours = c("blue", "green", "orange", "yellow")
+  ) + labs(fill = "")
+
+# No more missing data
+which(is.na(SST_df_rect))
+
 ## categorize precip
 ## categorize into "low", "normal", and "high"
 ## base on quantiles ^^^
@@ -382,3 +410,5 @@ seasons$fall <- seasons$fall %>% mutate(cat =
                                                     (precip < sea_quant[1, 4]) & (precip > sea_quant[1, 2]) ~ "normal",
                                                     precip >= sea_quant[1, 4] ~ "high")
 )
+
+
