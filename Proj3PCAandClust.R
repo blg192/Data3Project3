@@ -13,6 +13,7 @@ library(maps)
 library(fields)
 library(raster) 
 library(NbClust)
+library(reshape2)
 
 ## Call Data
 load("data_in_dfs.RData")
@@ -22,6 +23,8 @@ load("data_in_dfs.RData")
 #     test <- append(test, Pdat_df[, i])    
 # }
 
+
+## Just want to run final PCAs? Scroll to line 325 and start there. 
 
 ## SST Data
 ## Format for ease of use
@@ -319,6 +322,45 @@ baseplot + geom_point() + form + xlab('Principal Component 1') +
 
 ## I think KPCA might be the best options for both data sets
 
+## START HERE FOR NECESSARY CODE
+load("data_in_dfs.RData")
+
+form <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+              panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+SST_df <- na.omit(SST_df)
+SST_df <- apply(SST_df, 2, as.numeric)
+LongLat <- SST_df[, 1:2]
+MonthlySST <- SST_df[ , -c(1,2)]
+
+kpca2 <- kpca(MonthlySST, kernel = "vanilladot", kpar = list())
+KPCApcs <- kpca2@pcv[ , 1:6]
+set.seed(662321)
+KPCAclustres <- kmeans(KPCApcs, 5, nstart = 20, iter.max = 15)
+KPCAclustout <- factor(KPCAclustres$cluster)
+KPCAclust_raster <- rasterFromXYZ(cbind(LongLat, KPCAclustout))
+plot(KPCAclust_raster)
+baseplot <- ggplot(data = data.frame(KPCApcs, KPCAclustout), aes(x = KPCApcs[, 1], y = KPCApcs[, 2], color = KPCAclustout))
+baseplot + geom_point() + form + xlab('Principal Component 1') + 
+    ylab('Principal Component 2') + ggtitle('Plot of KPCA Clustering for First Two PCs')
+
+Pdat_df <- na.omit(Pdat_df)
+Pdat_df <- apply(Pdat_df, 2, as.numeric)
+LongLat2 <- Pdat_df[, 1:2]
+MonthlyPrecip <- Pdat_df[ , -c(1,2)]
+
+Pkpca2 <- kpca(MonthlyPrecip, kernel = "vanilladot", kpar = list())
+PKPCApcs <- Pkpca2@pcv[ , 1:4]
+set.seed(662321)
+PKPCAclustres <- kmeans(PKPCApcs, 12, nstart = 20, iter.max = 15)
+PKPCAclustout <- factor(PKPCAclustres$cluster)
+PKPCAclust_raster <- rasterFromXYZ(cbind(LongLat2, PKPCAclustout))
+plot(PKPCAclust_raster)
+baseplot <- ggplot(data = data.frame(PKPCApcs, PKPCAclustout), aes(x = PKPCApcs[, 1], y = PKPCApcs[, 2], color = PKPCAclustout))
+baseplot + geom_point() + form + xlab('Principal Component 1') + 
+    ylab('Principal Component 2') + ggtitle('Plot of KPCA Clustering for First Two PCs')
+
+
 ## Adding clusters to data frames and reformatting 
 
 ## Long Format SST
@@ -331,3 +373,19 @@ Pdat_df_clusts <- data.frame(Pdat_df, Clusters = PKPCAclustout)
 long_Pdat <- melt(Pdat_df_clusts, id.vars = colnames(SST_df_clusts[, c(1, 2, 845)]))
 colnames(long_Pdat) <- c('Longitude', 'Latitude', 'Cluster', 'Date', 'Precipitation')
 
+## Set up for a network? (IGNORE THIS FOR NOW)
+SST_clustwide <- dcast(data = long_SST[, -c(1,2)], Date ~ Cluster, fun.aggregate = mean)
+colnames(SST_clustwide) <- c('Date', 'SeaCluster1', 'SeaCluster2', 'SeaCluster3', 'SeaCluster4', 'SeaCluster5')
+
+Pdat_clustwide <- dcast(data = long_Pdat[, -c(1,2)], Date ~ Cluster, fun.aggregate = mean)
+colnames(Pdat_clustwide) <- c('Date', 'LandCluster1', 'LandCluster2', 'LandCluster3', 'LandCluster4', 'LandCluster5',
+                             'LandCluster6', 'LandCluster7', 'LandCluster8', 'LandCluster9', 'LandCluster10', 'LandCluster11',
+                             'LandCluster12')
+
+## or... ()
+
+SST_longagg <- aggregate(long_SST$Temperature, by = list(long_SST$Date, long_SST$Cluster), mean)
+colnames(SST_longagg) <- c('Date', 'SeaCluster', 'MeanTemp')
+
+Pdat_longagg <- aggregate(long_Pdat$Precipitation, by = list(long_Pdat$Date, long_Pdat$Cluster), mean)
+colnames(SST_longagg) <- c('Date', 'LandCluster', 'MeanPrecip')
