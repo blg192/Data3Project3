@@ -63,7 +63,7 @@ legend(100, 500, c('Real Trace', 'Random Trace'), fill = c('black', 'blue'))
 ## PC DF
 SSTUD <- SSTSVD$u %*% diag(SSTSVD$d)
 SSTUD <- cbind(LongLat, SSTUD[ , -c(34:842)])
-colnames(SSTUD) <- c('Long', 'Lat', paste0('PC', 1:33))
+colnames(SSTUD) <- c('Longitude', 'Latitude', paste0('PC', 1:33))
 
 ## Plot PC 1
 PC1_raster <- rasterFromXYZ(SSTUD[, c(1, 2, 3)])
@@ -109,8 +109,8 @@ par(mfrow = c(1,1))
 KPCAbestK2 <- sapply(1:20, 
                     function(k){kmeans(KPCApcs, k, nstart=50,iter.max = 15 )$tot.withinss})
 set.seed(662321)
-## Suggests 5 Clusters
-KPCAclustres <- kmeans(KPCApcs, 5, nstart = 20, iter.max = 15)
+## Suggests 3 Clusters
+KPCAclustres <- kmeans(KPCApcs, 3, nstart = 20, iter.max = 15)
 KPCAclustout <- factor(KPCAclustres$cluster)
 
 KPCAclust_raster <- rasterFromXYZ(cbind(LongLat, KPCAclustout))
@@ -218,7 +218,7 @@ colnames(PrecipUD) <- c('Long', 'Lat', paste0('PC', 1:26))
 PC1_raster <- rasterFromXYZ(PrecipUD[, c(1, 2, 3)])
 plot(PC1_raster)
 
-## Cluster with SVD (NOT WORKING YET)
+## Cluster with SVD
 
 ## Options for assessing number of clusters
 set.seed(629787)
@@ -336,7 +336,7 @@ MonthlySST <- SST_df[ , -c(1,2)]
 kpca2 <- kpca(MonthlySST, kernel = "vanilladot", kpar = list())
 KPCApcs <- kpca2@pcv[ , 1:6]
 set.seed(662321)
-KPCAclustres <- kmeans(KPCApcs, 5, nstart = 20, iter.max = 15)
+KPCAclustres <- kmeans(KPCApcs, 3, nstart = 20, iter.max = 15)
 KPCAclustout <- factor(KPCAclustres$cluster)
 KPCAclust_raster <- rasterFromXYZ(cbind(LongLat, KPCAclustout))
 plot(KPCAclust_raster)
