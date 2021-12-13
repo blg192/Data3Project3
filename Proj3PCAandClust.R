@@ -367,11 +367,15 @@ baseplot + geom_point() + form + xlab('Principal Component 1') +
 SST_df_clusts <- data.frame(SST_df, Clusters = KPCAclustout)
 long_SST <- melt(SST_df_clusts, id.vars = colnames(SST_df_clusts[, c(1, 2, 845)]))
 colnames(long_SST) <- c('Longitude', 'Latitude', 'Cluster', 'Date', 'Temperature')
+## saved data frame
+# save(long_SST, file = "SST_clus.RData")
 
 ## Long Format Precip
 Pdat_df_clusts <- data.frame(Pdat_df, Clusters = PKPCAclustout)
 long_Pdat <- melt(Pdat_df_clusts, id.vars = colnames(SST_df_clusts[, c(1, 2, 845)]))
 colnames(long_Pdat) <- c('Longitude', 'Latitude', 'Cluster', 'Date', 'Precipitation')
+## saved data frame
+# save(long_Pdat, file = "Pdat_clus.RData")
 
 ## Set up for a network? (IGNORE THIS FOR NOW)
 SST_clustwide <- dcast(data = long_SST[, -c(1,2)], Date ~ Cluster, fun.aggregate = mean)
