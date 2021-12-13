@@ -428,9 +428,100 @@ seasons$fall <- seasons$fall %>% mutate(cat =
 )
 
 
+## setting up categories quantiles but after splitting up by clusters 
+## load the clustered precip data from Proj3PCAandClust code
+load("Pdat_clus.RData")
+precip_clus <- long_Pdat
+## there are 12 clusters, calculate quantiles by cluster
+clus_quant <- do.call("rbind",
+                      tapply(precip_clus$Precipitation, # specify numeric column
+                             precip_clus$Cluster, # specify group variable
+                             quantile))
 
+## data frame with data frame for cluster
+clusters <- split(precip_clus, precip_clus$Cluster)
 
+## classify each cluster by respective quantiles
+## split into "low", "normal", and "high"
+## low is 25% and lower
+## normal is 25% to 75%
+## high is 75% and higher
+## cluster 1
+clusters$`1` <- clusters$`1` %>% mutate(cat = 
+                                          case_when(Precipitation <= clus_quant[1,2] ~ "low",
+                                                    (Precipitation < clus_quant[1, 4]) & (Precipitation > clus_quant[1, 2]) ~ "normal",
+                                                    Precipitation >= clus_quant[1, 4] ~ "high"))
 
+## cluster 2
+clusters$`2` <- clusters$`2` %>% mutate(cat = 
+                                          case_when(Precipitation <= clus_quant[2,2] ~ "low",
+                                                    (Precipitation < clus_quant[2, 4]) & (Precipitation > clus_quant[2, 2]) ~ "normal",
+                                                    Precipitation >= clus_quant[2, 4] ~ "high"))
+## cluster 3
+clusters$`3` <- clusters$`3` %>% mutate(cat = 
+                                          case_when(Precipitation <= clus_quant[3,2] ~ "low",
+                                                    (Precipitation < clus_quant[3, 4]) & (Precipitation > clus_quant[3, 2]) ~ "normal",
+                                                    Precipitation >= clus_quant[3, 4] ~ "high"))
+
+## cluster 4
+clusters$`4` <- clusters$`4` %>% mutate(cat = 
+                                          case_when(Precipitation <= clus_quant[4,2] ~ "low",
+                                                    (Precipitation < clus_quant[4, 4]) & (Precipitation > clus_quant[4, 2]) ~ "normal",
+                                                    Precipitation >= clus_quant[4, 4] ~ "high"))
+
+## cluster 5
+clusters$`5` <- clusters$`5` %>% mutate(cat = 
+                                          case_when(Precipitation <= clus_quant[5,2] ~ "low",
+                                                    (Precipitation < clus_quant[5, 4]) & (Precipitation > clus_quant[5, 2]) ~ "normal",
+                                                    Precipitation >= clus_quant[5, 4] ~ "high"))
+
+## cluster 6
+clusters$`6` <- clusters$`6` %>% mutate(cat = 
+                                          case_when(Precipitation <= clus_quant[6,2] ~ "low",
+                                                    (Precipitation < clus_quant[6, 4]) & (Precipitation > clus_quant[6, 2]) ~ "normal",
+                                                    Precipitation >= clus_quant[6, 4] ~ "high"))
+
+## cluster 7
+clusters$`7` <- clusters$`7` %>% mutate(cat = 
+                                          case_when(Precipitation <= clus_quant[7,2] ~ "low",
+                                                    (Precipitation < clus_quant[7, 4]) & (Precipitation > clus_quant[7, 2]) ~ "normal",
+                                                    Precipitation >= clus_quant[7, 4] ~ "high"))
+
+## cluster 8
+clusters$`8` <- clusters$`8` %>% mutate(cat = 
+                                          case_when(Precipitation <= clus_quant[8,2] ~ "low",
+                                                    (Precipitation < clus_quant[8, 4]) & (Precipitation > clus_quant[8, 2]) ~ "normal",
+                                                    Precipitation >= clus_quant[8, 4] ~ "high"))
+
+## cluster 9
+clusters$`9` <- clusters$`9` %>% mutate(cat = 
+                                          case_when(Precipitation <= clus_quant[9,2] ~ "low",
+                                                    (Precipitation < clus_quant[9, 4]) & (Precipitation > clus_quant[9, 2]) ~ "normal",
+                                                    Precipitation >= clus_quant[9, 4] ~ "high"))
+
+## cluster 10
+clusters$`10` <- clusters$`10` %>% mutate(cat = 
+                                            case_when(Precipitation <= clus_quant[10,2] ~ "low",
+                                                      (Precipitation < clus_quant[10, 4]) & (Precipitation > clus_quant[10, 2]) ~ "normal",
+                                                      Precipitation >= clus_quant[10, 4] ~ "high"))
+
+## cluster 11
+clusters$`11` <- clusters$`11` %>% mutate(cat = 
+                                            case_when(Precipitation <= clus_quant[11,2] ~ "low",
+                                                      (Precipitation < clus_quant[11, 4]) & (Precipitation > clus_quant[11, 2]) ~ "normal",
+                                                      Precipitation >= clus_quant[11, 4] ~ "high"))
+
+## cluster 12
+clusters$`12` <- clusters$`12` %>% mutate(cat = 
+                                            case_when(Precipitation <= clus_quant[12,2] ~ "low",
+                                                      (Precipitation < clus_quant[12, 4]) & (Precipitation > clus_quant[12, 2]) ~ "normal",
+                                                      Precipitation >= clus_quant[12, 4] ~ "high"))
+
+## merge these all back into one dataframe
+## data frame is saved as precip_clus_cat.Rdata
+precip_clus_cat <- unsplit(clusters, precip_clus$Cluster)
+## if you want to save after running
+# save(precip_clus_cat, file = "precip_clus_cat.RData")
 
 
 # Climatology Predictions With Simple Temp Categories ##############
@@ -476,3 +567,4 @@ for (i in month.abb) {
 # Oct     0.5270872
 # Nov     0.7007421
 # Dec     0.6901670
+
