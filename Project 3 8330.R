@@ -164,6 +164,22 @@ for(i in month.abb) {
                          na.rm = TRUE)
 }
 
+
+# MSE_clim
+# Jan 1.5900985
+# Feb 1.9682664
+# Mar 1.0887468
+# Apr 1.1136047
+# May 1.1602588
+# Jun 1.5510795
+# Jul 0.6293161
+# Aug 4.0806447
+# Sep 1.2802332
+# Oct 1.0866547
+# Nov 1.1314937
+# Dec 1.2854755
+
+
 # Plot of the January predictions
 Jan2017Pred_raster <- rasterFromXYZ(Pdat_df_preds[, c("long", "lat", "Jan2017pred")])
 plot(Jan2017Pred_raster)
@@ -412,3 +428,51 @@ seasons$fall <- seasons$fall %>% mutate(cat =
 )
 
 
+
+
+
+
+
+# Climatology Predictions With Simple Temp Categories ##############
+
+load("precip_cat_df_wide.RData")
+
+# All months through 2016
+Pdat_df_train = precip_cat_df_wide[,1:grep(pattern = "Dec2016", x = names(precip_cat_df_wide))]
+
+# All months in 2017 only
+Pdat_df_test = precip_cat_df_wide[, c(grep(pattern = "2017", x = names(precip_cat_df_wide)))]
+Pdat_df_test = cbind(precip_cat_df_wide[,c("long", "lat")], Pdat_df_test)
+
+# Predict using climatology method (most often of all previous months)
+Pdat_df_preds = data.frame(Pdat_df_train[, c("long", "lat")])
+for (i in month.abb) {
+  Pdat_df_preds[, paste0(i, "2017pred")] =
+    apply(Pdat_df_train[, grep(pattern = i,
+                               x = names(Pdat_df_train))], 1, function(x)
+                                 names(which.max(table(x))))
+}
+
+# MSE from climatology predictions (most often of all previous months)
+Accuracy_clim = vector()
+for (i in month.abb) {
+  temp_table = table(unlist(Pdat_df_test[grep(pattern = i,
+                                              x = names(Pdat_df_test))]), 
+                     Pdat_df_preds[, grep(pattern = i,
+                                          x = names(Pdat_df_preds))])
+  Accuracy_clim[i] = sum(diag(temp_table)) / sum(temp_table)
+}
+
+# Accuracy_clim
+# Jan     0.6864564
+# Feb     0.6914657
+# Mar     0.7191095
+# Apr     0.7259740
+# May     0.6858998
+# Jun     0.8051948
+# Jul     0.7782931
+# Aug     0.7259740
+# Sep     0.7699443
+# Oct     0.5270872
+# Nov     0.7007421
+# Dec     0.6901670
