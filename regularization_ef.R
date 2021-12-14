@@ -2,6 +2,7 @@ library(glmnet)
 library(randomForest)
 library(BART)
 library(tidyr)
+library(dplyr)
 ###################REGULARIZATION################################
 
 load("data_in_dfs.RData")
@@ -10,9 +11,14 @@ load("data_in_dfs.RData")
 # Missing data
 #SST
 anyNA(SST_df)
+# Missing data
 which(is.na(SST_df))
-SST_df <- na.omit(SST_df)
-dim(SST_df)
+
+# Gather rectangular area with no missing values
+SST_df_rect = SST_df[which(SST_df$long < 246),]
+SST_df_rect = SST_df_rect[which(SST_df_rect$long > 152),]
+# SST_df <- na.omit(SST_df)
+# dim(SST_df)
 
 #Pdat
 anyNA(Pdat_df)
@@ -38,6 +44,24 @@ precip_test <- Pdat_df_l[-trainp, ]
 trains <- c(1:(rowminsst - 1)) # training data up to Jan 2017
 tests <- c(rowminsst:nrow(SST_df_l)) # testing data Jan 2017 and beyond
 sst_test <- SST_df_l[-trains, ]
+
+
+
+# load 
+load("SST_clustwide.RData")
+load("Pdat_clustwide.RData")
+load("SST_longagg.RData")
+load("Pdat_longagg.RData")
+
+## row 829 is beginning of 2017
+train <- c(1:828)
+
+all_train <- data.frame(Pdat_clustwide[train,], SST_clustwide[train,])
+all_long_train <- gather(all_train, landclus, landclusavg, 2:13)
+all_long_train <- all_long_train[-2]
+all_test <- data.frame(Pdat_clustwide[-train,], SST_clustwide[-train,])
+all_long_test <- gather(all_test, landclus, landclusavg, 2:13)
+all_long_test <- all_long_test[-2]
 
 
 #################################### RIDGE REGRESSION #################################
@@ -196,6 +220,22 @@ abline(0,1)
 mean((yhat.rf - SST_df_l[subte, 4]))
 
 
+## using sst and precip
+set.seed(125498)
+m <- round(sqrt(ncol(all_long_train) - 2), 0)
+rf.sst <- randomForest(landclusavg ~ SeaCluster1 + SeaCluster2 + SeaCluster3 + SeaCluster4 + SeaCluster5,
+                       data = all_long_train,
+                       mtry = m,
+                       importance = TRUE)
+
+rf.sst$importance
+
+
+yhat.rf <- predict(rf.sst, newdata = as.matrix(all_long_test[,c(-1, -7)]))
+
+plot(yhat.rf, all_long_test[, 8])
+abline(0,1)
+testmse <- mean((yhat.rf - all_long_test[, 8]))
 
 
 #################################### BART #################################

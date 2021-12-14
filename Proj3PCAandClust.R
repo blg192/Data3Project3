@@ -393,4 +393,10 @@ SST_longagg <- aggregate(long_SST$Temperature, by = list(long_SST$Date, long_SST
 colnames(SST_longagg) <- c('Date', 'SeaCluster', 'MeanTemp')
 
 Pdat_longagg <- aggregate(long_Pdat$Precipitation, by = list(long_Pdat$Date, long_Pdat$Cluster), mean)
-colnames(SST_longagg) <- c('Date', 'LandCluster', 'MeanPrecip')
+colnames(Pdat_longagg) <- c('Date', 'LandCluster', 'MeanPrecip')
+
+# save files
+save(SST_clustwide, file = "SST_clustwide.RData")
+save(Pdat_clustwide, file = "Pdat_clustwide.RData")
+save(SST_longagg, file = "SST_longagg.RData")
+save(Pdat_longagg, file = "Pdat_longagg.RData")
