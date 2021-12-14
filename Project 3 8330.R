@@ -312,7 +312,12 @@ ggplot(data=as.data.frame(msemat), aes(x=tau, y=mse, group=1)) +
   ylab("Test MSE") +
   labs(title = "Test MSE for Varying Values of tau")
 
-
+## Persistence MSE for training/testing
+## predicted precipitations when tau = 6 months and limited to predicting 2017-2018
+jul16col <- which(colnames(Pdat_df) == "Jul2016")
+preddf <- predprecip(Pdat_df[, c(1:2, jul16col:ncol(Pdat_df))], 6)
+## Persistence MSE for 2017-2018
+testmse_pers <- testmse(Pdat_df[, c(1:2, jul16col:ncol(Pdat_df))], preddf)
 
 
 # Shrink SST data to remove NA values ##############
@@ -567,4 +572,36 @@ for (i in month.abb) {
 # Oct     0.5270872
 # Nov     0.7007421
 # Dec     0.6901670
+
+
+
+
+
+
+# Persistance MSE from CNN models
+
+# The prediction in July 2016 is the true value in January 2016
+
+# January 2016
+jan2016 = grep(pattern = "Jul2016", names(Pdat_df)) - 6
+
+# July 2016
+jul2016 = grep(pattern = "Jul2016", names(Pdat_df))
+
+MSE_per = vector()
+for(i in 0:(length(names(Pdat_df)[jul2016:(length(names(Pdat_df)) - 1)]) - 1)) {
+  MSE_per[i + 1] = mean((Pdat_df[, jan2016 + i] - Pdat_df[, jul2016 + i]) ^ 2,
+                        na.rm = T)
+}
+
+names(MSE_per) = names(Pdat_df)[jul2016:(length(names(Pdat_df)) - 1)]
+MSE_per
+
+# MSE for 2017
+mean(MSE_per[grep(pattern = "2017", x = names(MSE_per))])
+
+
+
+
+
 

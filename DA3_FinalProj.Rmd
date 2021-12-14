@@ -241,6 +241,8 @@ ggplot(data=as.data.frame(msemat), aes(x=tau, y=mse, group=1)) +
 ```
 
 ```{r pers_mod_mse, echo=FALSE, cache=TRUE}
+## need to add training here (2017--2018)
+
 ## MSE when tau = 12
 tau <- 12
 preddf <- predprecip(Pdat_df, tau)
@@ -288,6 +290,10 @@ testmserfcont <- mean((yhat.rf - all_long_test[, 8]))
 
 # plot(yhat.rf, all_long_test[, 8])
 # abline(0,1)
+
+## need to switch up MSE so that it accounts for bigger set
+
+## also try lagging rf with lag equal to 6 months
 
 ```
 
