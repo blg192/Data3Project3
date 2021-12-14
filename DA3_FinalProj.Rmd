@@ -63,6 +63,12 @@ load("data_in_dfs.RData")
   
 ### Random Forest
 
+- For random forest, predicted precip from sst
+- Ben should add his stuff about PCA and clust before this because it's based on that
+- used kpca clustering for land and sea and got average precip and avg sst for their respective clusters (5 clusters for sst and 12 clusters for precip)
+- used average sst in given month-year for each sea cluster as predictors of the precipitation of the same month-year
+- training set is time pre 2017 and testing set is 2017 and 2018
+- The number of variables randomly sampled as candidates at each split is set to 2
 
 ## Results
 
