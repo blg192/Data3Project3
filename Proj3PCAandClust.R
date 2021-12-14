@@ -303,12 +303,12 @@ PLEout <- data.frame(Obs = 1:5390, LE@data@data)
 ## Cluster for Eigenmap
 ## Cluster for LLE
 set.seed(662321)
-PLEbestK <- NbClust(PLEout, method = 'kmeans',  min.nc = 2, max.nc = 20, index = "all")
+PLEbestK <- NbClust(PLEout[ , -1], method = 'kmeans',  min.nc = 2, max.nc = 20, index = "all")
 par(mfrow = c(1,1))
 PLEbestK2 <- sapply(1:20, 
-                   function(k){kmeans(PLEout, k, nstart=50,iter.max = 15 )$tot.withinss})
+                   function(k){kmeans(PLEout[, -1], k, nstart=50,iter.max = 15 )$tot.withinss})
 set.seed(662321)
-PLEclustres <- kmeans(PLEout, 3, nstart = 20, iter.max = 20) ## suggests 2 or 3 clusters
+PLEclustres <- kmeans(PLEout[, -1], 3, nstart = 20, iter.max = 20) ## suggests 2 or 3 clusters
 PLEclustout <- factor(PLEclustres$cluster)
 
 PLEclust_raster <- rasterFromXYZ(cbind(LongLat2, PLEclustout))
