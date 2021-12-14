@@ -199,7 +199,7 @@ bag.sst
 yhat.bag <- predict(bag.sst, newdata = as.matrix(SST_df_l[subte,]))
 plot(yhat.bag, SST_df_l[subte, 4])
 abline(0,1)
-mean((yhat.bag - SST_df_l[subte, 4]))
+mean((yhat.bag - SST_df_l[subte, 4])^2)
 
 #################################### RANDOM FOREST REGRESSION #################################
 
@@ -217,7 +217,7 @@ yhat.rf <- predict(rf.sst, newdata = as.matrix(SST_df_l[subte,]))
 
 plot(yhat.rf, SST_df_l[subte, 4])
 abline(0,1)
-mean((yhat.rf - SST_df_l[subte, 4]))
+mean((yhat.rf - SST_df_l[subte, 4])^2)
 
 
 ## using sst and precip
@@ -235,8 +235,50 @@ yhat.rf <- predict(rf.sst, newdata = as.matrix(all_long_test[,c(-1, -7)]))
 
 plot(yhat.rf, all_long_test[, 8])
 abline(0,1)
-testmse <- mean((yhat.rf - all_long_test[, 8]))
+testmse <- mean((yhat.rf - all_long_test[, 8])^2)
 
+load("Pdat_df_l.RData")
+precip_yyhat <- data.frame(all_long_test[, c(1, 7:8)], "yhat" = yhat.rf)
+for(i in 1:nrow(precip_yyhat)){
+  if(precip_yyhat$landclus[i] == "LandCluster1"){
+    precip_yyhat$landclus[i] <- 1
+  } else if(precip_yyhat$landclus[i] == "LandCluster2"){
+    precip_yyhat$landclus[i] <- 2
+  } else if(precip_yyhat$landclus[i] == "LandCluster3"){
+    precip_yyhat$landclus[i] <- 3
+  } else if(precip_yyhat$landclus[i] == "LandCluster4"){
+    precip_yyhat$landclus[i] <- 4
+  } else if(precip_yyhat$landclus[i] == "LandCluster5"){
+    precip_yyhat$landclus[i] <- 5
+  } else if(precip_yyhat$landclus[i] == "LandCluster6"){
+    precip_yyhat$landclus[i] <- 6
+  } else if(precip_yyhat$landclus[i] == "LandCluster7"){
+    precip_yyhat$landclus[i] <- 7
+  } else if(precip_yyhat$landclus[i] == "LandCluster8"){
+    precip_yyhat$landclus[i] <- 8
+  } else if(precip_yyhat$landclus[i] == "LandCluster9"){
+    precip_yyhat$landclus[i] <- 9
+  } else if(precip_yyhat$landclus[i] == "LandCluster10"){
+    precip_yyhat$landclus[i] <- 10
+  } else if(precip_yyhat$landclus[i] == "LandCluster11"){
+    precip_yyhat$landclus[i] <- 11
+  } else{
+    precip_yyhat$landclus[i] <- 12
+  }
+}
+precip_yyhat$landclus <- as.factor(precip_yyhat$landclus)
+
+## limit long_Pdat to the test observations
+long_Pdat_test <- long_Pdat[min(which(long_Pdat$Date == "Jan2017")):nrow(long_Pdat),]
+
+all_precip_yyhat <- merge.data.frame(long_Pdat_test, precip_yyhat, 
+                                     by.x = c(4, 3), by.y = 1:2)
+
+## save data
+save(all_precip_yyhat, file = "all_precip_yyhat.RData")
+
+load("all_precip_yyhat.RData")
+testmse_rf <- mean((all_precip_yyhat$yhat - all_precip_yyhat$Precipitation)^2)
 
 #################################### BART #################################
 

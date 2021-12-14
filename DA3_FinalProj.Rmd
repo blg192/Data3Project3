@@ -37,6 +37,7 @@ library(glmnet)
 library(randomForest)
 library(BART)
 library(xtable)
+library(pls)
 options(xtable.comment = FALSE)
 
 
@@ -88,6 +89,8 @@ load("data_in_dfs.RData")
 
 ## Baseline: Climatology
 
+It is well known by experts in the field that one of the most simple models - the climatology model - performs relatively well given the ease of calculation and interpretation. The climatology model simply takes historical average for a given month and uses that as the prediction for that month in the future. Two climatology models were built with this data: one using the continuous precipitation values and one using the categorical precipitation values. The MSE of the model with the continuous values was 1.494, whereas the accuracy for the categorical values was 0.712. This values would need to be improved by other models described below to be considered as a replacement.
+
 ```{r clim_mod, cache=TRUE, include=FALSE}
 # can't set this to eval = FALSE because need MSE for table
 # Climatology Predictions (average of all previous months) ##############
@@ -102,18 +105,18 @@ Pdat_df_test = cbind(Pdat_df[,c("long", "lat")], Pdat_df_test)
 # Predict using climatology method (average of all previous months)
 Pdat_df_preds = data.frame(Pdat_df_train[,c("long", "lat")])
 predColNames = c(paste0(month.abb, "2017pred"), paste0(month.abb[1:2], "2018pred"))
-for(i in predColNames) {
-  Pdat_df_preds[, paste0(i, "2017pred")] =
-    rowMeans(Pdat_df_train[, grep(pattern = i,
+for(i in 1:length(predColNames)) {
+  Pdat_df_preds[, predColNames[i]] =
+    rowMeans(Pdat_df_train[, grep(pattern = substr(predColNames[i], 1, 3),
                                   x = names(Pdat_df_train))])
 }
 
 # MSE from climatology predictions (average of all previous months)
 MSE_clim = vector()
 for(i in 1:length(predColNames)) {
-  MSE_clim[i] = colMeans(((Pdat_df_test[grep(pattern = i,
+  MSE_clim[i] = colMeans(((Pdat_df_test[grep(pattern = substr(predColNames[i], 1, 7),
                                         x = names(Pdat_df_test))] -
-                        Pdat_df_preds[, grep(pattern = i,
+                        Pdat_df_preds[, grep(pattern = substr(predColNames[i], 1, 7),
                                              x = names(Pdat_df_preds))]) ^ 2),
                     na.rm = TRUE)
 }
@@ -273,7 +276,7 @@ testmsepers <- testmse(Pdat_df[, c(1:2, jul16col:ncol(Pdat_df))], preddf)
 
 ## Random Forest
 
-```{r rf1, echo=FALSE, cache=TRUE}
+```{r rf1, echo=FALSE, cache=TRUE, eval=FALSE}
 # load 
 load("SST_clustwide.RData")
 load("Pdat_clustwide.RData")
@@ -302,17 +305,154 @@ rf.sst <- randomForest(landclusavg ~ SeaCluster1 + SeaCluster2 + SeaCluster3 + S
 
 ```{r rf2, echo=FALSE, cache=TRUE}
 # rf.sst$importance
+## uncomment if want importance values and plots
+# yhat.rf <- predict(rf.sst, newdata = as.matrix(all_long_test[,c(-1, -7)]))
 
-yhat.rf <- predict(rf.sst, newdata = as.matrix(all_long_test[,c(-1, -7)]))
-
-testmserfcont <- mean((yhat.rf - all_long_test[, 8]))
+load("all_precip_yyhat.RData")
+testmserfcont <- mean((all_precip_yyhat$yhat - all_precip_yyhat$Precipitation)^2)
 
 # plot(yhat.rf, all_long_test[, 8])
 # abline(0,1)
 
-## need to switch up MSE so that it accounts for bigger set
+```
 
-## also try lagging rf with lag equal to 6 months
+
+## RIDGE REGRESSION
+
+```{r ridge1, echo=FALSE, cache=TRUE}
+# load 
+load("SST_clustwide.RData")
+load("Pdat_clustwide.RData")
+load("SST_longagg.RData")
+load("Pdat_longagg.RData")
+
+## row 829 is beginning of 2017
+train <- c(1:828)
+
+all_train <- data.frame(Pdat_clustwide[train,], SST_clustwide[train,])
+all_long_train <- gather(all_train, landclus, landclusavg, 2:13)
+all_long_train <- all_long_train[-2]
+all_test <- data.frame(Pdat_clustwide[-train,], SST_clustwide[-train,])
+all_long_test <- gather(all_test, landclus, landclusavg, 2:13)
+all_long_test <- all_long_test[-2]
+
+## using sst and precip
+set.seed(125498)
+m <- round(sqrt(ncol(all_long_train) - 2), 0)
+rf.sst <- randomForest(landclusavg ~ SeaCluster1 + SeaCluster2 + SeaCluster3 + SeaCluster4 + SeaCluster5,
+                       data = all_long_train,
+                       mtry = m,
+                       importance = TRUE)
+
+
+
+##use cross validation to choose the tuning parameter
+## actual data is too big so going to use a subset
+set.seed(597546)
+subset <- sample(1:nrow(all_long_train), 0.4*nrow(all_long_train))
+x <- model.matrix(landclusavg ~ ., all_long_train[subset, ])[, -1]
+y <- all_long_train[subset, ]$landclusavg
+
+set.seed(897521)
+train <- sample(1:nrow(x), 0.5*nrow(x))
+test <- (-train)
+y_test <- y[test]
+
+grid <- 10^seq(10, -2, length = 100)
+ridge_mod <- glmnet(x[train, ], y[train], alpha = 0,
+                    lambda = grid, thresh = 1e-12)
+
+set.seed(12598)
+cv_out <- cv.glmnet(x[train, ], y[train], alpha = 0)
+#plot(cv_out)
+bestlam <- cv_out$lambda.min
+
+```
+
+```{r ridge2, echo=FALSE, cache=TRUE}
+
+ridge_pred <- predict(ridge_mod, s = bestlam,
+                      newx = x[test, ])
+
+test_mse_ridge <- mean((ridge_pred - y_test)^2)
+test_mse_ridge
+
+```
+
+
+## LASSO REGRESSION
+
+```{r ridge1, echo=FALSE, cache=TRUE}
+
+set.seed(1)
+grid <- 10^seq(10, -2, length = 100)
+lasso_mod <- glmnet(x[train, ], y[train], alpha = 1,
+                    lambda = grid, thresh = 1e-12)
+
+set.seed(12598)
+cv_out <- cv.glmnet(x[train, ], y[train], alpha = 1)
+plot(cv_out)
+bestlam <- cv_out$lambda.min
+bestlam
+
+
+```
+
+```{r ridge2, echo=FALSE, cache=TRUE}
+
+lasso_pred <- predict(lasso_mod, s = bestlam,
+                      newx = x[test, ])
+
+test_mse_lasso <- mean((lasso_pred - y_test)^2)
+
+```
+
+
+## PRINCIPAL COMPONENT REGRESSION (PCR)
+
+```{r pcr1, echo=FALSE, cache=TRUE}
+
+pcr.fit <- pcr(landclusavg ~ SeaCluster1 + SeaCluster2 + SeaCluster3 + SeaCluster4 + SeaCluster5,
+               data = all_long_train,
+               scale = TRUE,
+               validation = "CV")
+
+summary(pcr.fit)
+
+#validationplot(pcr.fit , val.type = "MSEP")
+
+
+
+```
+
+```{r pcr2, echo=FALSE, cache=TRUE}
+#the lowest cross validation error at M=2
+pcr.pred <- predict(pcr.fit, newdata = (all_long_test[,c(-1, -7)]), ncomp = 2)
+
+testmse_PCRcont <- mean((pcr.pred - all_long_test[, 8])^2)
+```
+
+
+## PARTIAL LEAST SQUARE (PLS)
+
+```{r pls1, echo=FALSE, cache=TRUE}
+
+pls.fit <- plsr(landclusavg ~ SeaCluster1 + SeaCluster2 + SeaCluster3 + SeaCluster4 + SeaCluster5,
+                data = all_long_train,
+                scale = TRUE,
+                validation = "CV")
+
+#summary(pls.fit)
+
+#validationplot(pls.fit , val.type = "MSEP")
+
+```
+
+```{r pls2, echo=FALSE, cache=TRUE}
+#the lowest cross validation error at M=1
+pls.pred <- predict(pls.fit, newdata = (all_long_test[,c(-1, -7)]), ncomp = 1)
+
+testmse_PLScont <- mean((pls.pred - all_long_test[, 8])^2)
 
 ```
 
@@ -597,9 +737,12 @@ MSE_KPCA_cont = 2.47
 df <- data.frame("Model" = c("Baseline: Climatology",
                              "Baseline: Persistence",
                              "Random Forest",
+                             "Ridge Regression",
+                             "Lasso Regression",
                              "CNN: Naive Regions, Continuous Temp",
                              "CNN: KPCA Regions, Continuous Temp"),
-                 "Test MSE" = c(MSE_clim_avg, testmsepers, testmserfcont, 
+                 "Test MSE" = c(MSE_clim_avg, testmsepers, testmserfcont,
+                                test_mse_ridge, test_mse_lasso,
                                 MSE_CNN_naive_cont, MSE_KPCA_cont))
 
 print(xtable(df, caption = "Test MSE Values"), include.rownames = FALSE)
@@ -615,12 +758,13 @@ df2 <- data.frame("Model" = c("Baseline: Climatology",
                               "Baseline: Persistence",
                               "CNN: Naive Regions, Categorical Temp",
                               "CNN: KPCA Regions, Categorical Temp"),
-                  "Test MSE" = c(Accuracy_climatology, testmsepers, 
-                                 MSE_CNN_naive_cont, MSE_KPCA_cont))
+                  "Test Accuracy" = c(Accuracy_climatology, testmsepers, 
+                                      MSE_CNN_naive_cont, MSE_KPCA_cont))
 
 print(xtable(df2, caption = "Test Accuracy Values"), include.rownames = FALSE)
 ```
 
 ## Conclusion
-- CNN: Issues with classification problems due to the nature of the classes
 
+
+One issue that arose in the CCN analysis using the categorical precipitation was that the majority of locations have "normal" precipitation levels. Even when considering different class weights to account for the differences, it was difficult for the model to accurately predict the true categories. Future analysis could attempt to improve these results by investigating different values of $\tau$ in the lag models, devising a different methodology for categorizing precipitation, **ANYTHING ELSE??**
