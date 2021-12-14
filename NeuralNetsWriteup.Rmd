@@ -1,0 +1,330 @@
+---
+title: |
+  | \vspace{5cm} Stat 8330 Final Project Report
+author: "Katie Price, Emily Scully, Ben Graves, Ellen Fitzsimmons, and Mira Isnainy"
+date: "12/15/2021"
+output: pdf_document
+indent: true
+header-includes:
+  - \usepackage{pdfpages}
+  - \usepackage{indentfirst}
+---
+
+
+
+\newpage
+
+<!-- \includepdf[pages=1-13, pagecommand={}, scale = 0.9]{HW6q1_3.pdf} -->
+
+<!-- ```{r, out.width = "75%", fig.align='center'} -->
+
+<!--  -->
+
+<!-- ``` -->
+
+```{r, include = FALSE}
+
+# Load libraries
+library(knitr)
+library(ggplot2)
+library(ISLR2)
+library(ggpubr)
+library(tidyverse)
+
+
+library(tibble)
+library(ncdf4) # package for netcdf manipulation
+library(raster) # package for raster manipulation
+library(rgdal) # package for geospatial analysis
+library(ggplot2) # package for plotting
+library(ncdf4.helpers)
+library(PCICt)
+library(lubridate)
+library(dplyr)
+library(tfdatasets)
+library(keras)
+library(reshape2)
+library(maps)
+library(fields)
+
+load("precip_region_cont_df_wide.Rdata")
+
+options(scipen = 999)
+opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = TRUE,
+               echo = FALSE, message = FALSE, warning = FALSE,
+               include = FALSE)
+
+```
+
+
+## Convolutional Neural Networks
+
+The essence of this research is to find a way to use SST at some time point to predict the precipitation in the United States at another (possibly different) time point. When looking back at the SST plots in the exploration section, we can see that the data follows the pattern of an image. In this case, the longitude would be substituted in the X axis, the the latitude would be substituted in the Y axis, and the "channel" feature would simply be the observed SST value. One thing to note is that the SST data was shrunk to eliminate the area with missing values. In this case, using all of the data, we have 842 "images" which correspond to different month and year combinations through the domain of the data. Taking into account this representation of the data, we can now think of this as an image processing problem of which we know how to handle using methods learned in class. 
+
+One such method is convolutional neural networks (CNN) which are known to perform well on image-type data in both regression and classification contexts. The following subsections will describe the four best models from a selection of fifteen total models considered. Also note that, as in previous sections, the training data is contained up through 2016 and the test data includes 2017 and the two months in 2018.
+
+In, all five different categories of models were considered, each one containing three models: 
+
+  - Predicting precipitation at time $\tau$ from SST at time $\tau$
+  - Predicting precipitation at time $\tau + 6$ from SST at time $\tau$ (6 month lag)
+  - Predicting precipitation at time $\tau$ from SST principal components at time $\tau$
+
+The five different categories of models vary aspects of the precipitation data: 
+
+  - Naive precipitation regions with continuous data
+  - Naive precipitation regions with basic categorical data
+  - Naive precipitation regions with seasonal categorical data
+  - KPCA precipitation regions with continuous data
+  - KPCA precipitation regions with basic categorical data
+
+
+#### Predict Average Temperature From Naive Regions  \newline
+
+
+The original dimension of the precipitation data was too large for the CNN use case in this context, so four naive regions were created across the US based simply on geographical location. The simple average of these regions were then taken for each month and year to be predicted by the CNN. A visual representation of the four regions are shown in the plot below and are based off of a latitude of 38 and a longitude of -110.
+
+
+```{r, include = TRUE, out.width = "75%", fig.align='center'}
+
+state_map = map_data("state")
+bmap = map_data("state")
+
+ggplot() +
+  coord_fixed(ratio = 1) +
+  geom_hline(yintercept = 38, lty = "dashed", color = "blue", size = 1) + 
+  geom_vline(xintercept = -95, lty = "dashed", color = "blue", size = 1) + 
+  annotate("text", x = -110, y = 45, label = "NW", size = 20, color = "blue") + 
+  annotate("text", x = -80, y = 45, label = "NE", size = 20, color = "blue") + 
+  annotate("text", x = -110, y = 30, label = "SW", size = 20, color = "blue") + 
+  annotate("text", x = -80, y = 30, label = "SE", size = 20, color = "blue") + 
+  geom_polygon(
+    data = bmap,
+    aes(x = long, y = lat, group = group),
+    inherit.aes = F,
+    colour = 'black',
+    fill = NA,
+    lwd = 0.5
+  ) + 
+  labs(fill = "", x = "Longitude", y = "Latitude", title = "Naive Regions") +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(colour = "black",
+                                fill = NA,
+                                size = 0.5),
+    panel.background = element_blank()
+  )
+
+```
+
+
+The first CNN was able to be trained now that the data were formatted accordingly. The CNN that performed best in this case contained a single convolution layer, a flatten, layer, 2 dense layers, and an output layer. Batch normalization was used between the dense layers. MSE was used as the loss function. A detailed summary is shown in the table below. This model was able to predict the averages of the four clusters with and MSE of 0.726. When expanding the predictions back to the original data set the MSE increased (as expected) 3.01.
+
+
+```{r include=TRUE}
+
+kable(tibble(
+  Options = c(
+    "Convolution Layer",
+    "Flatten",
+    "Batch Normalization",
+    "Dense Layer",
+    "Batch Normalization",
+    "Dense Layer",
+    "Batch Normalization",
+    "Dense Layer",
+    "Epochs",
+    "Batch Size",
+    "Optimizer"
+  ),
+  `Model` = c(
+    "filters = 32; kernal size = 5; activation = ReLU",
+    "---",
+    "---",
+    "units = 800; activation = ReLU",
+    "---",
+    "units = 400; activation = ReLU",
+    "---",
+    "units = 4; activation = ReLU",
+    10,
+    32,
+    "Adam; learning rate = 0.01"
+  )
+))
+
+```
+
+
+#### Predict Modal Temperature Category From Naive Regions with 6-Month Lag  \newline
+
+
+The precipitation data can also described in a categorical format representing low, normal, or high values. The normal category includes the 25th - 75th quantiles of data for the particular year and the low and high categories follow either as precipitation below the 25th quantile or above the 75th quantile respectively. The categorical data were then mapped to the four naive regions accordingly for each month and year. A 6-month lag was finally applied to the data such that the SST value at time $\tau$ predicts the precipitation at time $\tau + 6$ and the modal category for each region was calculated for prediction.
+
+The best CNN found contains a convolutional layer followed by a series of dropout, flattening, and dense layers described in more detail in the table below. Also note that based on the way the data were formatted, sparse categorical crossentropy was used for the loss function. The accuracy of the model when predicting the category for each cluster was 0.713, and decreased (as expected) to 0.553 when expanding the predictions back to the full data set.
+
+
+```{r include=TRUE}
+
+kable(tibble(
+  Options = c(
+    "Convolution Layer",
+    "Dropout",
+    "Flatten",
+    "Dense Layer",
+    "Dropout",
+    "Dense Layer",
+    "Dropout",
+    "Dense Layer",
+    "Dropout",
+    "Dense Layer",
+    "Epochs",
+    "Batch Size",
+    "Optimizer"
+  ),
+  `Model` = c(
+    "filters = 32; kernal size = 5; activation = ReLU",
+    "10%",
+    "---",
+    "units = 100; activation = ReLU",
+    "30%",
+    "units = 50; activation = ReLU",
+    "30%",
+    "units = 25; activation = ReLU",
+    "40%",
+    "units = 4; activation = ReLU",
+    30,
+    32,
+    "Adam; learning rate = 0.01"
+  )
+))
+  
+  
+```
+
+
+
+
+#### Predict Average Temperature From KPCA Regions  \newline
+
+
+Based on the results achieved in the previous sections with the naive regions, we wanted to explore more methodical ways of creating temperature regions. One such way emerged from the results of the KPCA analysis done on the temperature data from a previous region. Using those results, the temperature data were separated into twelve distinct regions displayed below:
+
+```{r, include = TRUE, out.width = "75%", fig.align='center'}
+
+ggplot() +
+  coord_fixed(ratio = 1) +
+  geom_raster(data = precip_region_cont_df_wide, aes(
+    x = long,
+    y = lat,
+    fill = Cluster
+  ), alpha = 1) +
+  geom_polygon(
+    data = bmap,
+    aes(x = long, y = lat, group = group),
+    inherit.aes = F,
+    colour = 'black',
+    fill = NA,
+    lwd = 0.5
+  ) + 
+  labs(fill = "Region", x = "Longitude", y = "Latitude", title = "KPCA Regions") +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(colour = "black",
+                                fill = NA,
+                                size = 0.5),
+    panel.background = element_blank()
+  )
+
+
+```
+
+
+The average precipitation for each month and year was calculated to be predicted by the CNN. The best model for this case included a convolutional layer followed by a series of dense and dropout layers shown in detail in the table below. MSE was used as the loss function as in the naive region case. The MSE for predicting the region averages was 2.712 which decreased slightly to 2.47 when expanded to the full data set.
+
+
+
+```{r include=TRUE}
+
+kable(tibble(
+  Options = c(
+    "Convolution Layer",
+    "Flatten",
+    "Dense Layer",
+    "Dropout",
+    "Dense Layer",
+    "Dropout",
+    "Dense Layer",
+    "Dropout",
+    "Dense Layer",
+    "Epochs",
+    "Batch Size",
+    "Optimizer"
+  ),
+  `Model` = c(
+    "filters = 32; kernal size = 5; activation = ReLU",
+    "---",
+    "units = 100; activation = ReLU",
+    "20%",
+    "units = 50; activation = ReLU",
+    "20%",
+    "units = 25; activation = ReLU",
+    "20%",
+    "units = 12; activation = ReLU",
+    100,
+    32,
+    "Adam; learning rate = 0.001"
+  )
+))
+
+```
+
+
+
+
+#### Predict Modal Temperature Category From KPCA Regions  \newline
+
+
+The temperature regions determined by PCA can also be mapped to different temperature categories as described in an earlier section with the naive clusters. The data were grouped based on these twelve regions and three temperature categories (low, normal, high) and the most frequent temperature category for each group was taken to be the value representative of that region (similar to the temperature average approach with the continuous data). The goal was now to simply predict the temperature category for each of the 12 regions.
+
+As with the naive region case, each of the twelve clusters were trained on the CNN model separately. The optimal model for this case included a convolution layer, flattening, batch normalization, dropout, and a few dense layers. Also note that sparse categorical crossentropy was used for the loss function. The accuracy of predicting the categories for each cluster was 0.565 which decreased to 0.347 when the predictions expanded to the full data.
+
+
+```{r include=TRUE}
+
+kable(tibble(
+  Options = c(
+    "Convolution Layer",
+    "Flatten",
+    "Batch Normalization",
+    "Dense Layer",
+    "Dropout",
+    "Batch Normalization",
+    "Dense Layer",
+    "Dense Layer",
+    "Epochs",
+    "Batch Size",
+    "Optimizer"
+  ),
+  `Model` = c(
+    "filters = 32; kernal size = 5; activation = ReLU",
+    "---",
+    "---",
+    "units = 800; activation = ReLU",
+    "20%",
+    "---",
+    "units = 400; activation = ReLU",
+    "units = 4; activation = ReLU",
+    10,
+    32,
+    "Adam; learning rate = 0.01; decay = 0.01"
+  )
+))
+
+
+```
+
+
+
+
+
