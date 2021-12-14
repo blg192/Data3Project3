@@ -24,7 +24,21 @@ library(lubridate)
 library(dplyr)
 library(maps)
 library(fields)
+library(tidyr)
+library(glmnet)
+library(randomForest)
+library(BART)
+library(xtable)
+options(xtable.comment = FALSE)
 ```
+
+## Introduction
+Meteorologists study long and hard to predict weather patterns, day in and day out. Anticipating precipitation in North America is not only a convenience for the general public, but a necessity for farmers and agriculturalists. The importance of clean water is a secret to no one. Clean water is not only a key factor in the survival of nearly all living species, but also a key resource for power and production in the modern world. From food production to electricity, water can be used in many different forms for many important aspects of the human experience. Predicting precipitation and subsequently predicting to some extent the frequency and volume of available freshwater is a valuable and essential analysis. This study looks to examine the relationship between sea surface temperatures (henceforth SST) patterns in the tropical Pacific Ocean and precipitation over North America. It was our desire to be able to predict precipitation levels based on SST, both contemporaneously and on a future-time basis. We used several different methods to predict the precipitation outcomes as accurately as possible, including: **insert all methods here**. 
+
+## Exploratory Data Analysis
+The data available includes  monthly SST anomalies on a grid for the period January 1948 through February 2018. These "anomalies" consist of differences of the temperature from a long-term average. Additionally, the data includes precipitation data for a majority of the North American continent.
+
+## Methods Considered
 
 ```{r data, echo=FALSE}
 ## import data
@@ -32,6 +46,33 @@ library(fields)
 load("data_in_dfs.RData")
 
 ```
+
+### Baseline: Climatology
+
+
+### Baseline: Persistence
+- $\tau$ represents number of months before predicted precipitation date
+
+
+### CNN
+- With naive temperature clusters
+  - With no lead time
+  - With 6-month lead time
+  - With Principal Components instead of SST data
+  
+  
+### Random Forest
+
+- For random forest, predicted precip from sst
+- Ben should add his stuff about PCA and clust before this because it's based on that
+- used kpca clustering for land and sea and got average precip and avg sst for their respective clusters (5 clusters for sst and 12 clusters for precip)
+- used average sst in given month-year for each sea cluster as predictors of the precipitation of the same month-year
+- training set is time pre 2017 and testing set is 2017 and 2018
+- The number of variables randomly sampled as candidates at each split is set to 2
+
+## Results
+
+### Baseline: Climatology
 
 ```{r clim_mod, echo=FALSE}
 # Climatology Predictions (average of all previous months) ##############
@@ -116,6 +157,11 @@ ggplot() +
 
 ```
 
+### Baseline: Persistence
+
+- test MSE increases as tau approaches 6 month intervals away from the predicted date and decreases as tau approaches 12 month intervals away from the predicted date
+- Basically MSE is lower when using data from the same time of year as the predicted date
+
 ```{r pers_mod, echo=FALSE, message=FALSE}
 # Persistence Predictions (pred_(t + tau) = pred_t) ##############
 
@@ -162,7 +208,6 @@ preddf <- predprecip(Pdat_df, 6)
 
 ## Step 4
 ## Make forecast and establish baseline performance
-library(tidyr)
 testmse <- function(Pdat_df, preddf){
   longdatorig <- gather(Pdat_df, time, precip, 3:ncol(Pdat_df))
   longdatpred <- gather(preddf, time, precip, 3:ncol(preddf))
@@ -195,12 +240,76 @@ ggplot(data=as.data.frame(msemat), aes(x=tau, y=mse, group=1)) +
 
 ```
 
-## Introduction
+```{r pers_mod_mse, echo=FALSE, cache=TRUE}
+## MSE when tau = 12
+tau <- 12
+preddf <- predprecip(Pdat_df, tau)
+testmsepers <- testmse(Pdat_df, preddf)
 
-## Exploratory Data Analysis
+```
 
-## Methods Considered
+### CNN
 
-## Results
+### Random Forest
+
+```{r rf1, echo=FALSE, cache=TRUE}
+# load 
+load("SST_clustwide.RData")
+load("Pdat_clustwide.RData")
+load("SST_longagg.RData")
+load("Pdat_longagg.RData")
+
+## row 829 is beginning of 2017
+train <- c(1:828)
+
+all_train <- data.frame(Pdat_clustwide[train,], SST_clustwide[train,])
+all_long_train <- gather(all_train, landclus, landclusavg, 2:13)
+all_long_train <- all_long_train[-2]
+all_test <- data.frame(Pdat_clustwide[-train,], SST_clustwide[-train,])
+all_long_test <- gather(all_test, landclus, landclusavg, 2:13)
+all_long_test <- all_long_test[-2]
+
+## using sst and precip
+set.seed(125498)
+m <- round(sqrt(ncol(all_long_train) - 2), 0)
+rf.sst <- randomForest(landclusavg ~ SeaCluster1 + SeaCluster2 + SeaCluster3 + SeaCluster4 + SeaCluster5,
+                       data = all_long_train,
+                       mtry = m,
+                       importance = TRUE)
+
+```
+
+```{r rf2, echo=FALSE, cache=TRUE}
+# rf.sst$importance
+
+yhat.rf <- predict(rf.sst, newdata = as.matrix(all_long_test[,c(-1, -7)]))
+
+testmserfcont <- mean((yhat.rf - all_long_test[, 8]))
+
+# plot(yhat.rf, all_long_test[, 8])
+# abline(0,1)
+
+```
+
+
+```{r echo=FALSE, results='asis'}
+df <- data.frame("Model" = c("Baseline: Climatology January", 
+                             "Baseline: Climatology February",
+                             "Baseline: Climatology March",
+                             "Baseline: Climatology April",
+                             "Baseline: Climatology May",
+                             "Baseline: Climatology June",
+                             "Baseline: Climatology July",
+                             "Baseline: Climatology August",
+                             "Baseline: Climatology September",
+                             "Baseline: Climatology October", 
+                             "Baseline: Climatology November",
+                             "Baseline: Climatology December",
+                             "Baseline: Persistence", 
+                              "Random Forest"),
+                    "Test MSE" = c(MSE_clim, testmsepers, testmserfcont))
+
+print(xtable(df, caption = "Test MSE Values"), include.rownames = FALSE)
+```
 
 ## Conclusion

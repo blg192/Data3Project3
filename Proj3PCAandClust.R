@@ -63,7 +63,7 @@ legend(100, 500, c('Real Trace', 'Random Trace'), fill = c('black', 'blue'))
 ## PC DF
 SSTUD <- SSTSVD$u %*% diag(SSTSVD$d)
 SSTUD <- cbind(LongLat, SSTUD[ , -c(34:842)])
-colnames(SSTUD) <- c('Long', 'Lat', paste0('PC', 1:33))
+colnames(SSTUD) <- c('Longitude', 'Latitude', paste0('PC', 1:33))
 
 ## Plot PC 1
 PC1_raster <- rasterFromXYZ(SSTUD[, c(1, 2, 3)])
@@ -101,16 +101,18 @@ kpca3 <- kpca(MonthlySST, kernel = "laplacedot", kpar = list(sigma = .03)) ##9 -
 kpcarand <- kpca(rand, kernel = "vanilladot", kpar = list())
 
 KPCApcs <- kpca2@pcv[ , 1:6]
+KPCApcs <- data.frame(LongLat, KPCApcs)
+colnames(KPCApcs) <- c('Longitude', 'Latitude', paste0('PC', 1:6))
 
 ## Cluster for KPCA
 set.seed(662321)
-KPCAbestK <- NbClust(KPCApcs, method = 'kmeans',  min.nc = 2, max.nc = 20, index = "all")
+KPCAbestK <- NbClust(KPCApcs[, -c(1,2)], method = 'kmeans',  min.nc = 2, max.nc = 20, index = "all")
 par(mfrow = c(1,1))
 KPCAbestK2 <- sapply(1:20, 
-                    function(k){kmeans(KPCApcs, k, nstart=50,iter.max = 15 )$tot.withinss})
+                    function(k){kmeans(KPCApcs[, -c(1,2)], k, nstart=50,iter.max = 15 )$tot.withinss})
 set.seed(662321)
-## Suggests 5 Clusters
-KPCAclustres <- kmeans(KPCApcs, 5, nstart = 20, iter.max = 15)
+##Suggests 5
+KPCAclustres <- kmeans(KPCApcs[ , -c(1,2)], 5, nstart = 20, iter.max = 15) ##Suggests 3
 KPCAclustout <- factor(KPCAclustres$cluster)
 
 KPCAclust_raster <- rasterFromXYZ(cbind(LongLat, KPCAclustout))
@@ -145,7 +147,7 @@ LLEclust_raster <- rasterFromXYZ(cbind(LongLat, LLEclustout))
 plot(LLEclust_raster)
 
 
-baseplot <- ggplot(data = data.frame(LLEpcs, LLEclustout), aes(x = LLEpcs[, 1], y = LLEpcs[, 2], color = LLEclustout))
+baseplot <- ggplot(data = data.frame(Ymat, LLEclustout), aes(x = Ymat[, 1], y = Ymat[, 2], color = LLEclustout))
 
 baseplot + geom_point() + form + xlab('Principal Component 1') + 
     ylab('Principal Component 2') + ggtitle('Plot of LLE Clustering for First Two PCs')
@@ -156,14 +158,13 @@ LE <- embed(MonthlySST, .method = 'LaplacianEigenmaps')
 LEout <- data.frame(Obs = 1:2512, LE@data@data)
 
 ## Cluster for Eigenmap
-## Cluster for LLE
 set.seed(662321)
-LEbestK <- NbClust(LEout, method = 'kmeans',  min.nc = 2, max.nc = 20, index = "all")
+LEbestK <- NbClust(LEout[, -1], method = 'kmeans',  min.nc = 2, max.nc = 20, index = "all")
 par(mfrow = c(1,1))
 LEbestK2 <- sapply(1:20, 
                     function(k){kmeans(LEout, k, nstart=50,iter.max = 15 )$tot.withinss})
 set.seed(662321)
-LEclustres <- kmeans(LEout, 2, nstart = 20, iter.max = 15) ## suggests 2 or 3 clusters
+LEclustres <- kmeans(LEout[, -1], 3, nstart = 20, iter.max = 15) ## suggests 2 or 3 clusters
 LEclustout <- factor(LEclustres$cluster)
 
 LEclust_raster <- rasterFromXYZ(cbind(LongLat, LEclustout))
@@ -218,7 +219,7 @@ colnames(PrecipUD) <- c('Long', 'Lat', paste0('PC', 1:26))
 PC1_raster <- rasterFromXYZ(PrecipUD[, c(1, 2, 3)])
 plot(PC1_raster)
 
-## Cluster with SVD (NOT WORKING YET)
+## Cluster with SVD
 
 ## Options for assessing number of clusters
 set.seed(629787)
@@ -302,12 +303,12 @@ PLEout <- data.frame(Obs = 1:5390, LE@data@data)
 ## Cluster for Eigenmap
 ## Cluster for LLE
 set.seed(662321)
-PLEbestK <- NbClust(PLEout, method = 'kmeans',  min.nc = 2, max.nc = 20, index = "all")
+PLEbestK <- NbClust(PLEout[ , -1], method = 'kmeans',  min.nc = 2, max.nc = 20, index = "all")
 par(mfrow = c(1,1))
 PLEbestK2 <- sapply(1:20, 
-                   function(k){kmeans(PLEout, k, nstart=50,iter.max = 15 )$tot.withinss})
+                   function(k){kmeans(PLEout[, -1], k, nstart=50,iter.max = 15 )$tot.withinss})
 set.seed(662321)
-PLEclustres <- kmeans(PLEout, 3, nstart = 20, iter.max = 20) ## suggests 2 or 3 clusters
+PLEclustres <- kmeans(PLEout[, -1], 3, nstart = 20, iter.max = 20) ## suggests 2 or 3 clusters
 PLEclustout <- factor(PLEclustres$cluster)
 
 PLEclust_raster <- rasterFromXYZ(cbind(LongLat2, PLEclustout))
@@ -392,4 +393,10 @@ SST_longagg <- aggregate(long_SST$Temperature, by = list(long_SST$Date, long_SST
 colnames(SST_longagg) <- c('Date', 'SeaCluster', 'MeanTemp')
 
 Pdat_longagg <- aggregate(long_Pdat$Precipitation, by = list(long_Pdat$Date, long_Pdat$Cluster), mean)
-colnames(SST_longagg) <- c('Date', 'LandCluster', 'MeanPrecip')
+colnames(Pdat_longagg) <- c('Date', 'LandCluster', 'MeanPrecip')
+
+# save files
+save(SST_clustwide, file = "SST_clustwide.RData")
+save(Pdat_clustwide, file = "Pdat_clustwide.RData")
+save(SST_longagg, file = "SST_longagg.RData")
+save(Pdat_longagg, file = "Pdat_longagg.RData")
