@@ -136,11 +136,8 @@ A similar procedure was followed for the KPCA except multiple kernels were also 
 \ \ \ \ \ \ \ \ 
 Using these six components for clustering, seven indices suggest five as the best number of clusters, four suggest two clusters, and 3 suggest 6 or 20 clusters. So, five clusters seems to have the most support. The cluster structure here seems to break up the northern and eastern most sections of the pacific more with a bit of an alternating pattern, leaving a single cluster for the southwest area. The clustering can be seen in Figure \ref{fig:SSTClusters}.
 
-<<<<<<< HEAD
+
 ```{r eigenfigs, echo=FALSE, results='asis', fig.cap = '\\label{fig:eigenfig} Plot of singular values and Eigen values for real and randomized SST data set for PCA and KPCA respectively. The PCs of the start performing worse than random after component 33 for the PCA and 32 for KPCA.', fig.align = 'center', out.width='90%'}
-=======
-```{r eigenfigs, echo=FALSE, results='asis', fig.cap = '\\label{fig:eigenfig} Plot of singular values and Eigen values for real and randomized data set for PCA and KPCA respectively. The PCs of the start performing worse than random after component 33 for the PCA and 32 for KPCA.', fig.align = 'center', out.width='90%'}
->>>>>>> e8ad691156e418ad87283a60dbfaf1a712c94c09
 ## Suggests 33 PCs (97% Var)
 SSTsingvals <- melt(SSTsingvals, id.vars = 'Component', 
                     variable.name = 'Data', value.name = 'SingVal')
@@ -166,11 +163,8 @@ eigenplot <- ggplot(kpcaeig, aes(x = Component, y = EigenVal, color = Data)) +
 ggarrange(singvalplot, eigenplot, ncol = 1, nrow = 2)
 ```
 
-<<<<<<< HEAD
+
 ```{r SSTPC1s, echo=FALSE, results='asis', fig.cap = '\\label{fig:SSTPC1s} Plot of PC1 from PCA and KPCA for SST data.', fig.align = 'center'}
-=======
-```{r SSTPC1s, echo=FALSE, results='asis', fig.cap = '\\label{fig:SSTPC1s} Plot of PC1 from PCA and KPCA of SST data.', fig.align = 'center'}
->>>>>>> e8ad691156e418ad87283a60dbfaf1a712c94c09
 ## Plot PC 1
 SSTSVDPC1 <- ggplot(SSTUD, aes(x = Longitude, y = Latitude, fill = PC1)) + 
              coord_fixed(ratio = 1) + geom_raster(alpha = 1) + form + 
@@ -318,15 +312,10 @@ rand2decomp <- svd(rand2)
 Precipsingvals <- data.frame(Precipsingvals, as.numeric(rand2decomp$d))
 colnames(Precipsingvals) <- c('Component', 'Real Data Trace', 'Random Data Trace')
 
-<<<<<<< HEAD
+
 ## set up PCs
 PrecipUD <- PrecipSVD$u %*% diag(PrecipSVD$d)
 PrecipUD <- data.frame(LongLat2, PrecipUD[ , -c(27:842)])
-=======
-## set up sing vals
-PrecipUD <- PrecipSVD$u %*% diag(PrecipSVD$d)
-PrecipUD <- cbind(LongLat2, PrecipUD[ , -c(27:842)])
->>>>>>> e8ad691156e418ad87283a60dbfaf1a712c94c09
 colnames(PrecipUD) <- c('Longitude', 'Latitude', paste0('PC', 1:26))
 
 ## Cluster
@@ -348,15 +337,9 @@ if (file.exists('Precipdimreduce.RData')){
 ```
 
 ```{r precipkpca, include=FALSE}
-<<<<<<< HEAD
 #Pkpca2 <- kpca(MonthlyPrecip, kernel = "vanilladot", kpar = list()) ##maybe 2-4 PCs? Better than Random suggests 25.
 Pkpcavaracc <- cumsum(Pkpca2@eig[1:26]^2)/sum(Pkpca2@eig^2)*100
 #Pkpcarand2 <- kpca(rand2, kernel = "vanilladot", kpar = list())
-=======
-Pkpca2 <- kpca(MonthlyPrecip, kernel = "vanilladot", kpar = list()) ##maybe 2-4 PCs? Better than Random suggests 25.
-Pkpcavaracc <- cumsum(Pkpca2@eig[1:26]^2)/sum(Pkpca2@eig^2)*100
-Pkpcarand2 <- kpca(rand2, kernel = "vanilladot", kpar = list())
->>>>>>> e8ad691156e418ad87283a60dbfaf1a712c94c09
 Pkpcaeig <- data.frame(Component = 1:842, Real = Pkpca2@eig, Random = Pkpcarand2@eig)
 colnames(Pkpcaeig) <- c('Component', 'Real Data Trace', 'Random Data Trace')
 Pkpcaeig<- melt(Pkpcaeig, id.vars = 'Component', 
@@ -368,7 +351,6 @@ PKPCApcs <- Pkpca2@pcv[ , 1:4]
 ## 12 Suggested
 set.seed(662321)
 PKPCAclustres <- kmeans(PKPCApcs, 12, nstart = 20, iter.max = 15)
-<<<<<<< HEAD
 PKPCAclustout <- data.frame(LongLat2, Cluster = factor(PKPCAclustres$cluster))
 colnames(PKPCAclustout) <- c('Longitude', 'Latitude', 'Cluster')
 
@@ -377,16 +359,6 @@ colnames(PKPCApcs) <- c('Longitude', 'Latitude', paste0('PC', 1:4))
 ```
 
 ```{r eigenfigs2, echo=FALSE, results='asis', fig.cap = '\\label{fig:eigenfig} Plot of singular values and Eigen values for real and randomized precipitation data set for PCA and KPCA respectively. The PCs of the start performing worse than random after component 33 for the PCA and 32 for KPCA.', fig.align = 'center', out.width='90%'}
-=======
-PKPCAclustout <- data.frame(LongLat, Cluster = factor(PKPCAclustres$cluster))
-colnames(KPCAclustout) <- c('Longitude', 'Latitude', 'Cluster')
-
-PKPCApcs <- data.frame(LongLat, KPCApcs)
-colnames(KPCApcs) <- c('Longitude', 'Latitude', paste0('PC', 1:4))
-```
-
-```{r eigenfigs2, echo=FALSE, results='asis', fig.cap = '\\label{fig:eigenfig} Plot of singular values and Eigen values for real and randomized data set for PCA and KPCA respectively. The PCs of the start performing worse than random after component 33 for the PCA and 32 for KPCA.', fig.align = 'center', out.width='90%'}
->>>>>>> e8ad691156e418ad87283a60dbfaf1a712c94c09
 ## Suggests 33 PCs (97% Var)
 Precipsingvals <- melt(Precipsingvals, id.vars = 'Component', 
                     variable.name = 'Data', value.name = 'SingVal')
@@ -405,7 +377,7 @@ eigenplot <- ggplot(Pkpcaeig, aes(x = Component, y = EigenVal, color = Data)) +
 ggarrange(singvalplot, eigenplot, ncol = 1, nrow = 2)
 ```
 
-<<<<<<< HEAD
+
 ```{r PrecipPC1s, echo=FALSE, results='asis', fig.cap = '\\label{fig:SSTPC1s} Plot of PC1 from PCA and KPCA for precipitation data.', fig.align = 'center'}
 bmap = map_data("state")
 colnames(bmap)[1:2] <- c('Longitude', 'Latitude')
@@ -441,40 +413,24 @@ ggarrange(PrecipSVDPC1, PrecipkpcaPC1, ncol = 1, nrow = 2)
 ```{r precipLLE, include=FALSE}
 ## Opt K = 25 for 2
 #Plleres <- lle(MonthlyPrecip, m = 2, k = 25)
-=======
-```{r precipLLE, include=FALSE}
-## Opt K = 25 for 2
-Plleres <- lle(MonthlyPrecip, m = 2, k = 25)
->>>>>>> e8ad691156e418ad87283a60dbfaf1a712c94c09
 PYmat <- data.frame(Plleres$Y)
 
 ## Cluster
 set.seed(662321)
 PLLEclustres <- kmeans(PYmat, 3, nstart = 20, iter.max = 25) #3 suggested, 2 next
-<<<<<<< HEAD
 PLLEclustout <- data.frame(LongLat2, Cluster = factor(PLLEclustres$cluster))
-=======
-PLLEclustout <- data.frame(LongLat, Cluster = factor(PLLEclustres$cluster))
->>>>>>> e8ad691156e418ad87283a60dbfaf1a712c94c09
 colnames(PLLEclustout) <- c('Longitude', 'Latitude', 'Cluster')
 ```
 
 ```{r precipLE, include=FALSE}
-<<<<<<< HEAD
+
 #PLE <- embed(MonthlyPrecip, .method = 'LaplacianEigenmaps')
 PLEout <- data.frame(Obs = 1:5390, PLE@data@data)
-=======
-PLE <- embed(MonthlyPrecip, .method = 'LaplacianEigenmaps')
-PLEout <- data.frame(Obs = 1:5390, LE@data@data)
->>>>>>> e8ad691156e418ad87283a60dbfaf1a712c94c09
+
 
 ## Cluster
 set.seed(662321)
 PLEclustres <- kmeans(PLEout[, -1], 3, nstart = 20, iter.max = 20) ## suggests 2 or 3 clusters
-<<<<<<< HEAD
 PLEclustout <- data.frame(LongLat2, Cluster = factor(PLEclustres$cluster))
-=======
-PLEclustout <- data.frame(LongLat, Cluster = factor(PLEclustres$cluster))
->>>>>>> e8ad691156e418ad87283a60dbfaf1a712c94c09
 colnames(PLEclustout) <- c('Longitude', 'Latitude', 'Cluster')
 ```
