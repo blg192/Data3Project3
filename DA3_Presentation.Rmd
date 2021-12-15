@@ -24,14 +24,33 @@ library(lubridate)
 library(dplyr)
 library(maps)
 library(fields)
+library(tidyr)
+library(glmnet)
+library(randomForest)
+library(BART)
+library(xtable)
+library(pls)
+library(gam) ## GAMs
+options(xtable.comment = FALSE)
+
+
+library(knitr)
 library(ggpubr)
+library(tidyverse)
+library(tibble)
+library(tfdatasets)
+library(keras)
+library(reshape2)
+
 library(kernlab)
 library(NMF)
 library(lle)
 library(dimRed)
 library(loe)
 library(RSpectra)
-library(reshape2)
+
+load("precip_region_cont_df_wide.RData")
+
 ```
 
 ```{r data, echo=FALSE}
@@ -40,8 +59,12 @@ library(reshape2)
 load("data_in_dfs.RData")
 
 ```
-
 ## Introduction
+
+- This study examines the relationship between sea surface temperatures (henceforth SST) patterns in the tropical Pacific Ocean and precipitation over North America
+- We wanted to predict precipitation levels based on SST, both contemporaneously and on a future-time basis
+- Methods used include: dimension reduction by principal components analysis, LLE, and Laplacian Eigenmaps, persistence and climatology baseline models, random forests, ridge regression, lasso regression, GAM regression, and convolutional neural networks
+
 
 ## Dimension Reduction and Clustering
 
@@ -552,59 +575,17 @@ remove(PrecipSVD, rand2decomp, Pkpca2, Pkpcarand2, Plleres, PLE, MonthlyPrecip, 
 
 - We created baseline models with climatology predictions and a persistence model
 
+## Baseline: Climatology Model
 
-
-```{r clim_mod, echo=FALSE, cache=TRUE}
-# Climatology Predictions (average of all previous months) ##############
-
-# All months through 2016
-Pdat_df_train = Pdat_df[,1:grep(pattern = "Dec2016", x = names(Pdat_df))]
-
-# All months in 2017 only
-Pdat_df_test = Pdat_df[, c(grep(pattern = "2017", x = names(Pdat_df)))]
-Pdat_df_test = cbind(Pdat_df[,c("long", "lat")], Pdat_df_test)
-
-# Predict using climatology method (average of all previous months)
-Pdat_df_preds = data.frame(Pdat_df_train[,c("long", "lat")])
-for(i in month.abb) {
-  Pdat_df_preds[, paste0(i, "2017pred")] =
-    rowMeans(Pdat_df_train[, grep(pattern = i,
-                                  x = names(Pdat_df_train))])
-}
-
-# MSE from climatology predictions (average of all previous months)
-MSE_clim = vector()
-for(i in month.abb) {
-  MSE_clim[i] = colMeans(((Pdat_df_test[grep(pattern = i,
-                                        x = names(Pdat_df_test))] -
-                        Pdat_df_preds[, grep(pattern = i,
-                                             x = names(Pdat_df_preds))]) ^ 2),
-                    na.rm = TRUE)
-}
+```{r clim_mod, cache=TRUE, include=FALSE}
+load("MSE_clim.RData")
+MSE_clim_avg = mean(MSE_clim)
 
 ```
 
-## Climatology Predictions: January Predictions
 
-```{r clim_mod_plot_1, echo=FALSE, cache=TRUE}
-# Plot of the January predictions
-Jan2017Pred_raster <- rasterFromXYZ(Pdat_df_preds[, c("long", "lat", "Jan2017pred")])
-plot(Jan2017Pred_raster)
 
-```
-
-## Climatology Predictions: January True Values
-
-```{r clim_mod_plot_2, echo=FALSE, cache=TRUE}
-# Plot of the January true values
-Jan2017True_raster <- rasterFromXYZ(Pdat_df_test[, c("long", "lat", "Jan2017")])
-plot(Jan2017True_raster)
-
-```
-
-## Climatology Predictions
-
-```{r clim_mod_plot_3, echo=FALSE, cache=TRUE}
+```{r clim_mod_plot, echo=FALSE, eval = FALSE}
 state_map = map_data("state")
 bmap = map_data("state")
 
@@ -649,9 +630,9 @@ ggplot() +
 
 ```
 
-## Persistence Model
+## Baseline: Persistence Model
 
-```{r pers_mod, echo=FALSE, cache=TRUE, message=FALSE}
+```{r pers_mod, echo=FALSE, message=FALSE, eval=FALSE}
 # Persistence Predictions (pred_(t + tau) = pred_t) ##############
 
 
@@ -663,7 +644,7 @@ ggplot() +
 
 
 ## Step 1
-## transform univariate dataset into supervised learning problem
+## transform univariate data set into supervised learning problem
 ## load the data set and create a lagged representation
 ## i.e. given the observation at t predict the observation at t + tau
 predprecip <- function(df, tau){
@@ -688,7 +669,7 @@ predprecip <- function(df, tau){
 preddf <- predprecip(Pdat_df, 6)
 
 ## Step 2
-## establish train and test datasets for test harness
+## establish train and test data sets for test harness
 ## This isn't necessary, but if we want to add it we can
 
 ## Step 3
@@ -697,7 +678,6 @@ preddf <- predprecip(Pdat_df, 6)
 
 ## Step 4
 ## Make forecast and establish baseline performance
-library(tidyr)
 testmse <- function(Pdat_df, preddf){
   longdatorig <- gather(Pdat_df, time, precip, 3:ncol(Pdat_df))
   longdatpred <- gather(preddf, time, precip, 3:ncol(preddf))
@@ -710,25 +690,86 @@ testmse <- function(Pdat_df, preddf){
 
 ```
 
-```{r pers_mod_plot, echo=FALSE, cache=TRUE}
+```{r pers_mod_mse, echo=FALSE, cache=TRUE}
+load("pers_mse.RData")
+## overall
+# preddf <- predprecip(Pdat_df, 6)
+# testmsepersall <- testmse(Pdat_df, preddf)
+testmsepersall <- testmse
+
+## Persistence MSE for training/testing
+## predicted precipitations when tau = 6 months and limited to predicting 2017-2018
+# jul16col <- which(colnames(Pdat_df) == "Jul2016")
+# preddf <- predprecip(Pdat_df[, c(1:2, jul16col:ncol(Pdat_df))], 6)
+## Persistence MSE for 2017-2018
+# testmsepers <- testmse(Pdat_df[, c(1:2, jul16col:ncol(Pdat_df))], preddf)
+testmsepers <- testmse_pers
+
+```
+
+## Baseline: Persistence Model
+
+```{r pers_mod_plot, echo=FALSE, cache=TRUE, out.width="70%", fig.align='center'}
 ## It seems MSE increases as tau approaches the 6 months mark and decreases 
 ## as it approaches the 12 month mark
-n <- 24
-msemat <- matrix(c(1:n, rep(NA, n)), nrow = n, ncol = 2, byrow = FALSE)
-colnames(msemat) <- c("tau", "mse")
-for(i in 1:n){
-  preddf <- predprecip(Pdat_df, i)
-  msemat[i, 2] <- testmse(Pdat_df, preddf)
-}
+# n <- 24
+# msemat <- matrix(c(1:n, rep(NA, n)), nrow = n, ncol = 2, byrow = FALSE)
+# colnames(msemat) <- c("tau", "mse")
+# for(i in 1:n){
+#   preddf <- predprecip(Pdat_df, i)
+#   msemat[i, 2] <- testmse(Pdat_df, preddf)
+# }
+## above saved in this file
+load("pers_msemat.RData")
 
 ggplot(data=as.data.frame(msemat), aes(x=tau, y=mse, group=1)) +
   geom_line()+
   geom_point() +
-  xlab("tau: Number of Months Ahead of Prediction") +
+  xlab("tau: Number of Months Previous to Prediction") +
   ylab("Test MSE") +
   labs(title = "Test MSE for Varying Values of tau")
 
 ```
+
+# Random Forest
+
+```{r rf2, echo=FALSE, cache=TRUE}
+# rf.sst$importance
+## uncomment if want importance values and plots
+# yhat.rf <- predict(rf.sst, newdata = as.matrix(all_long_test[,c(-1, -7)]))
+
+load("all_precip_yyhat.RData")
+testmserfcont <- mean((all_precip_yyhat$yhat - all_precip_yyhat$Precipitation)^2)
+
+
+# plot(yhat.rf, all_long_test[, 8])
+# abline(0,1)
+
+```
+
+```{r rf3, echo=FALSE, cache=TRUE}
+load("all_yyhat_lag.RData")
+testmse_rflag <- mean((all_yyhat_lag$yhat - all_yyhat_lag$Precipitation)^2)
+
+```
+
+# Ridge Regression and Lasso Regression
+
+```{r ridge2, echo=FALSE, cache=TRUE}
+
+load("all_precip_yyhat2.RData")
+testmse_ridge <- mean((all_precip_yyhat2$s1 - all_precip_yyhat2$Precipitation)^2)
+
+
+```
+
+```{r lasso2, echo=FALSE, cache=TRUE}
+
+load("all_precip_yyhat3.RData")
+testmse_lasso <- mean((all_precip_yyhat3$s1 - all_precip_yyhat3$Precipitation)^2)
+
+```
+
 
 
 ## Results
