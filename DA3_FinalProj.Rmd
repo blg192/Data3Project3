@@ -8,6 +8,7 @@ indent: true
 header-includes:
   - \usepackage{pdfpages}
   - \usepackage{indentfirst}
+  - \usepackage{float}
 ---
 
 \newcommand{\pkg}[1]{{\normalfont\fontseries{b}\selectfont #1}}
@@ -76,7 +77,73 @@ load("data_in_dfs.RData")
 Meteorologists study long and hard to predict weather patterns, day in and day out. Anticipating precipitation in North America is not only a convenience for the general public, but a necessity for farmers and agriculturalists. The importance of clean water is a secret to no one. Clean water is not only a key factor in the survival of nearly all living species, but also a key resource for power and production in the modern world. From food production to electricity, water can be used in many different forms for many important aspects of the human experience. Predicting precipitation and subsequently predicting to some extent the frequency and volume of available freshwater is a valuable and essential analysis. This study looks to examine the relationship between sea surface temperatures (henceforth SST) patterns in the tropical Pacific Ocean and precipitation over North America. It was our desire to be able to predict precipitation levels based on SST, both contemporaneously and on a future-time basis. We used several different methods to predict the precipitation outcomes as accurately as possible, including: **insert all methods here**. 
 
 # Exploratory Data Analysis
-The data available includes  monthly SST anomalies on a grid for the period January 1948 through February 2018. These "anomalies" consist of differences of the temperature from a long-term average. Additionally, the data includes precipitation data for a majority of the North American continent.
+
+The data available includes  monthly SST anomalies on a grid for the period January 1948 through February 2018. These "anomalies" consist of differences of the temperature from a long-term average. Additionally, the data includes precipitation data for a majority of the North American continent. Examples of each data source are plotted below for May 2017:
+
+```{r, echo = FALSE, out.width="60%", fig.align='center'}
+
+state_map = map_data("state")
+bmap = map_data("state")
+
+
+# Fancy plots
+precipPlot = ggplot() +
+  coord_fixed(ratio = 1) +
+  geom_raster(data = Pdat_df,
+              aes(x = long, y = lat, fill = May2017),
+              alpha = 1) +
+  geom_polygon(
+    data = bmap,
+    aes(x = long, y = lat, group = group),
+    inherit.aes = F,
+    colour = 'black',
+    fill = NA,
+    lwd = 0.5
+  ) +
+  scale_fill_gradientn(
+    na.value = "white",
+    # Limits need to be updated accordingly
+    limits = c(min(Pdat_df$May2017) - 0.5, 
+               max(Pdat_df$May2017) + 0.5),
+    colours = c("blue", "green", "orange", "yellow")
+  ) +
+  theme_classic() + 
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank()
+  ) + 
+  labs(fill = "Precipication \nUnits", 
+       title = "May 2017 Observed Precipitation")
+
+
+SSTPlot = ggplot() +
+  coord_fixed(ratio = 1) +
+  geom_raster(data = SST_df,
+              aes(x = long, y = lat, fill = May2017),
+              alpha = 1) +
+  scale_fill_gradientn(
+    na.value = "white",
+    # Limits need to be updated accordingly
+    limits = c(min(Pdat_df$May2017) - 0.5, 
+               max(Pdat_df$May2017) + 0.5),
+    colours = c("blue", "green", "orange", "yellow")
+  ) +
+  theme_classic() + 
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank()
+  ) + 
+  labs(fill = "Temperature \nUnits", 
+       title = "May 2017 Observed SST")
+
+
+gridExtra::grid.arrange(precipPlot, SSTPlot)
+
+```
+
+It should be noted that for the purpose of this research inherent time and spatial relationships were ignored, so data from each month and year was assumed to be independent of the next.
 
 # Dimension Reduction and Clustering
 
@@ -170,7 +237,7 @@ A similar procedure was followed for the KPCA except multiple kernels were also 
 
 Using these six components for clustering, seven indices suggest five as the best number of clusters, four suggest two clusters, and 3 suggest 6 or 20 clusters. So, five clusters seems to have the most support. The cluster structure here seems to break up the northern and eastern most sections of the pacific more with a bit of an alternating pattern, leaving a single cluster for the southwest area. The clustering can be seen in Figure \ref{fig:SSTClusters}.
 
-```{r eigenfigs, echo=FALSE, results='asis', fig.cap = '\\label{fig:eigenfig} Plot of singular values and Eigen values for real and randomized SST data set for PCA and KPCA respectively. The PCs of the start performing worse than random after component 33 for the PCA and 32 for KPCA.', fig.align = 'center', out.width='75%'}
+```{r eigenfigs, echo=FALSE, results='asis', fig.cap = '\\label{fig:eigenfig} Plot of singular values and Eigen values for real and randomized SST data set for PCA and KPCA respectively. The PCs of the start performing worse than random after component 33 for the PCA and 32 for KPCA.', fig.align = 'center', out.width='75%', fig.pos="H"}
 ## Suggests 33 PCs (97% Var)
 SSTsingvals <- melt(SSTsingvals, id.vars = 'Component', 
                     variable.name = 'Data', value.name = 'SingVal')
@@ -196,7 +263,7 @@ eigenplot <- ggplot(kpcaeig, aes(x = Component, y = EigenVal, color = Data)) +
 ggarrange(singvalplot, eigenplot, ncol = 1, nrow = 2)
 ```
 
-```{r SSTPC1, echo=FALSE, results='asis', fig.cap = '\\label{fig:SSTPC1s} Plot of PC1 from PCA and KPCA for SST data.', fig.align = 'center', out.width='65%'}
+```{r SSTPC1, echo=FALSE, results='asis', fig.cap = '\\label{fig:SSTPC1s} Plot of PC1 from PCA and KPCA for SST data.', fig.align = 'center', out.width='65%', fig.pos="H"}
 ## Plot PC 1
 SSTSVDPC1 <- ggplot(SSTUD, aes(x = Longitude, y = Latitude, fill = PC1)) + 
              coord_fixed(ratio = 1) + geom_raster(alpha = 1) + ggform + 
@@ -235,7 +302,7 @@ Dimensional reduction was also attempted using LLE and Laplacian Eigenmaps. For 
 
 The Laplacian Eigenmap also reduced dimensionality down to two. Clustering indices suggest that the optimal number of clusters is three with six indices. Two and four clusters could also be considered with 4 indices proposing each of those. Using three clusters, the Pacific is split into a single cluster to the west and two clusters in the east being split almost at the equator (Figure \ref{fig:SSTClusters}). 
 
-```{r clusterplot1, echo = FALSE, results='asis', fig.cap = '\\label{fig:SSTClusters} Best clustering solutions for each of the dimension reduction methods for SST data.', fig.align = 'center', fig.height=9}
+```{r clusterplot1, echo = FALSE, results='asis', fig.cap = '\\label{fig:SSTClusters} Best clustering solutions for each of the dimension reduction methods for SST data.', fig.align = 'center', fig.height=9, fig.pos="H"}
 ## SVD plot
 SSTSVDClust <- ggplot(SVDclustout, aes(x = Longitude, y = Latitude,  fill = Cluster)) + 
                coord_fixed(ratio = 1) + geom_raster(alpha = 1) + ggform + ggtitle('Clustering from PCA') +
@@ -275,7 +342,7 @@ SSTLEClust <- ggplot(LEclustout, aes(x = Longitude, y = Latitude,  fill = Cluste
 ggarrange(SSTSVDClust, SSTKPCAClust, SSTLLEClust, SSTLEClust, ncol = 1, nrow = 4)
 ```
 
-```{r clustbypc, echo = FALSE, results='asis', fig.cap = '\\label{fig:SSTClustbypc} Location clusters plotted by the first two PCs or manifolds of each dimension reduction techinque.', fig.align = 'center'}
+```{r clustbypc, echo = FALSE, results='asis', fig.cap = '\\label{fig:SSTClustbypc} Location clusters plotted by the first two PCs or manifolds of each dimension reduction techinque.', fig.align = 'center', fig.pos="H"}
 SSTSVDPCplot <- ggplot(data = data.frame(SSTUD, SVDclustout), aes(x = PC1, y = PC2, color = Cluster)) + 
                 geom_point(size = .3) + ggform + xlab('Principal Component 1') + 
                 ylab('Principal Component 2') + ggtitle('PCA Clusters') +
@@ -401,7 +468,7 @@ The KPCA model that provided the largest dimensional reduction without having to
 
 Using the first four PCs from the KPCA the optimal number of clusters was assessed again. Seven indices suggest 12 clusters are appropriate and five indices suggest two or three clusters are appropriate. For the most part, the twelve clusters do break up the U.S. into specific regions. However, there are a few smaller areas that are split apart from the main cluster. For example, a portion of the Carolinas, Virginia, and Maryland area are clustered with the west and southwest region (Figure \ref{fig:PrecipClusters}).
 
-```{r eigenfigs2, echo=FALSE, results='asis', fig.cap = '\\label{fig:eigenfig2} Plot of singular values and Eigen values for real and randomized precipitation data set for PCA and KPCA respectively. The PCs of the start performing worse than random after component 33 for the PCA and 32 for KPCA.', fig.align = 'center', out.width='75%'}
+```{r eigenfigs2, echo=FALSE, results='asis', fig.cap = '\\label{fig:eigenfig2} Plot of singular values and Eigen values for real and randomized precipitation data set for PCA and KPCA respectively. The PCs of the start performing worse than random after component 33 for the PCA and 32 for KPCA.', fig.align = 'center', out.width='75%', fig.pos="H"}
 ## Suggests 26 PCs (97% Var)
 Precipsingvals <- melt(Precipsingvals, id.vars = 'Component', 
                     variable.name = 'Data', value.name = 'SingVal')
@@ -420,7 +487,7 @@ eigenplot <- ggplot(Pkpcaeig[c(1:400, 843:1243),], aes(x = Component, y = EigenV
 ggarrange(singvalplot, eigenplot, ncol = 1, nrow = 2)
 ```
 
-```{r PrecipPC1, echo=FALSE, results='asis', fig.cap = '\\label{fig:PrecipPC1s} Plot of PC1 from PCA and KPCA for precipitation data.', fig.align = 'center', out.width='65%'}
+```{r PrecipPC1, echo=FALSE, results='asis', fig.cap = '\\label{fig:PrecipPC1s} Plot of PC1 from PCA and KPCA for precipitation data.', fig.align = 'center', out.width='65%', fig.pos="H"}
 bmap = map_data("state")
 colnames(bmap)[1:2] <- c('Longitude', 'Latitude')
 
@@ -482,7 +549,7 @@ Clustering indices for the LE suggest that the optimal number of clusters here i
 
 For the following analyses, we use the KPCA results for each of the data sets. The SST data makes use of the five cluster solution and the precipitation uses the 12 cluster solution. 
 
-```{r clusterplot2, echo = FALSE, results='asis', fig.cap = '\\label{fig:PrecipClusters} Best clustering solutions for each of the dimension reduction methods for Precipitation data.', fig.align = 'center', fig.height=9}
+```{r clusterplot2, echo = FALSE, results='asis', fig.cap = '\\label{fig:PrecipClusters} Best clustering solutions for each of the dimension reduction methods for Precipitation data.', fig.align = 'center', fig.height=9, fig.pos="H"}
 ## SVD plot
 PrecipSVDClust <- ggplot(PSVDclustout, aes(x = Longitude, y = Latitude,  fill = Cluster)) + 
                   coord_fixed(ratio = 1) + geom_raster(alpha = 1) +
@@ -542,7 +609,7 @@ PrecipLEClust <- ggplot(PLEclustout, aes(x = Longitude, y = Latitude,  fill = Cl
 ggarrange(PrecipSVDClust, PrecipKPCAClust, PrecipLLEClust, PrecipLEClust, ncol = 1, nrow = 4)
 ```
 
-```{r clustbypc2, echo = FALSE, results='asis', fig.cap = '\\label{fig:PrecipClustbypc} Location clusters plotted by the first two PCs or manifolds of each dimension reduction techinque.', fig.align = 'center'}
+```{r clustbypc2, echo = FALSE, results='asis', fig.cap = '\\label{fig:PrecipClustbypc} Location clusters plotted by the first two PCs or manifolds of each dimension reduction techinque.', fig.align = 'center', fig.pos="H"}
 PrecipSVDPCplot <- ggplot(data = data.frame(PrecipUD, PSVDclustout), aes(x = PC1, y = PC2, color = Cluster)) + 
                    geom_point(size = .3) + ggform + xlab('Principal Component 1') + 
                    ylab('Principal Component 2') + ggtitle('PCA Clusters') +
@@ -593,18 +660,96 @@ remove(PrecipSVD, rand2decomp, Pkpca2, Pkpcarand2, Plleres, PLE, MonthlyPrecip, 
 
 ## Baseline: Persistence
 - $\tau$ represents number of months before predicted precipitation date
+- test MSE increases as tau approaches 6 month intervals away from the predicted date and decreases as tau approaches 12 month intervals away from the predicted date
+- Basically MSE is lower when using data from the same time of year as the predicted date
+
+```{r pers_mod, echo=FALSE, message=FALSE}
+# Persistence Predictions (pred_(t + tau) = pred_t) ##############
 
 
+# Need to define how far out we want tau to be
+# Project document suggests 6 months?
 
-## Random Forest
+## I based this on the following tutorial:
+# https://machinelearningmastery.com/persistence-time-series-forecasting-with-python/
 
-- For random forest, predicted precip from sst
-- Ben should add his stuff about PCA and clust before this because it's based on that
-- used kpca clustering for land and sea and got average precip and avg sst for their respective clusters (5 clusters for sst and 12 clusters for precip)
-- used average sst in given month-year for each sea cluster as predictors of the precipitation of the same month-year
-- training set is time pre 2017 and testing set is 2017 and 2018
-- The number of variables randomly sampled as candidates at each split is set to 2
 
+## Step 1
+## transform univariate dataset into supervised learning problem
+## load the data set and create a lagged representation
+## i.e. given the observation at t predict the observation at t + tau
+predprecip <- function(df, tau){
+  ## df is dataframe
+  ## tau is distance from prediction point
+  mat <- as.matrix(df)
+  predprecip <- matrix(NA, nrow = nrow(mat), ncol = ncol(mat) + tau)
+  colnames(predprecip) <- c(colnames(mat), c(paste("x", 1:tau, sep = "")))
+  for(i in 1:ncol(mat)){
+    if(i < 3){
+      predprecip[, i] <- mat[, i]
+    } else{
+      ttau <- i + tau
+      predprecip[, ttau] <- mat[, i]
+    }
+  }
+  preddf <- as.data.frame(predprecip)
+  return(preddf)
+}
+
+## predicted precipitations when tau = 6 months
+preddf <- predprecip(Pdat_df, 6)
+
+## Step 2
+## establish train and test datasets for test harness
+## This isn't necessary, but if we want to add it we can
+
+## Step 3
+## Define persistence model
+## This step is also unnecessary because we can extract it from step 1
+
+## Step 4
+## Make forecast and establish baseline performance
+testmse <- function(Pdat_df, preddf){
+  longdatorig <- gather(Pdat_df, time, precip, 3:ncol(Pdat_df))
+  longdatpred <- gather(preddf, time, precip, 3:ncol(preddf))
+  
+  y <- data.frame("ytest" = longdatorig$precip, "yhat" = longdatpred[1:nrow(longdatorig), ]$precip)
+  y <- na.omit(y)
+  testmse <- mean((y$yhat - y$ytest)^2)
+  return(testmse)
+}
+
+```
+
+```{r pers_mod_plot, echo=FALSE, cache=TRUE}
+## It seems MSE increases as tau approaches the 6 months mark and decreases 
+## as it approaches the 12 month mark
+n <- 24
+msemat <- matrix(c(1:n, rep(NA, n)), nrow = n, ncol = 2, byrow = FALSE)
+colnames(msemat) <- c("tau", "mse")
+for(i in 1:n){
+  preddf <- predprecip(Pdat_df, i)
+  msemat[i, 2] <- testmse(Pdat_df, preddf)
+}
+
+ggplot(data=as.data.frame(msemat), aes(x=tau, y=mse, group=1)) +
+  geom_line()+
+  geom_point() +
+  xlab("tau: Number of Months Ahead of Prediction") +
+  ylab("Test MSE") +
+  labs(title = "Test MSE for Varying Values of tau")
+
+```
+
+```{r pers_mod_mse, echo=FALSE, cache=TRUE}
+## Persistence MSE for training/testing
+## predicted precipitations when tau = 6 months and limited to predicting 2017-2018
+jul16col <- which(colnames(Pdat_df) == "Jul2016")
+preddf <- predprecip(Pdat_df[, c(1:2, jul16col:ncol(Pdat_df))], 6)
+## Persistence MSE for 2017-2018
+testmsepers <- testmse(Pdat_df[, c(1:2, jul16col:ncol(Pdat_df))], preddf)
+
+```
 
 
 ## Baseline: Climatology
@@ -700,101 +845,15 @@ ggplot() +
 
 ```
 
-## Baseline: Persistence
-
-- test MSE increases as tau approaches 6 month intervals away from the predicted date and decreases as tau approaches 12 month intervals away from the predicted date
-- Basically MSE is lower when using data from the same time of year as the predicted date
-
-```{r pers_mod, echo=FALSE, message=FALSE}
-# Persistence Predictions (pred_(t + tau) = pred_t) ##############
-
-
-# Need to define how far out we want tau to be
-# Project document suggests 6 months?
-
-## I based this on the following tutorial:
-# https://machinelearningmastery.com/persistence-time-series-forecasting-with-python/
-
-
-## Step 1
-## transform univariate dataset into supervised learning problem
-## load the data set and create a lagged representation
-## i.e. given the observation at t predict the observation at t + tau
-predprecip <- function(df, tau){
-  ## df is dataframe
-  ## tau is distance from prediction point
-  mat <- as.matrix(df)
-  predprecip <- matrix(NA, nrow = nrow(mat), ncol = ncol(mat) + tau)
-  colnames(predprecip) <- c(colnames(mat), c(paste("x", 1:tau, sep = "")))
-  for(i in 1:ncol(mat)){
-    if(i < 3){
-      predprecip[, i] <- mat[, i]
-    } else{
-      ttau <- i + tau
-      predprecip[, ttau] <- mat[, i]
-    }
-  }
-  preddf <- as.data.frame(predprecip)
-  return(preddf)
-}
-
-## predicted precipitations when tau = 6 months
-preddf <- predprecip(Pdat_df, 6)
-
-## Step 2
-## establish train and test datasets for test harness
-## This isn't necessary, but if we want to add it we can
-
-## Step 3
-## Define persistence model
-## This step is also unnecessary because we can extract it from step 1
-
-## Step 4
-## Make forecast and establish baseline performance
-testmse <- function(Pdat_df, preddf){
-  longdatorig <- gather(Pdat_df, time, precip, 3:ncol(Pdat_df))
-  longdatpred <- gather(preddf, time, precip, 3:ncol(preddf))
-  
-  y <- data.frame("ytest" = longdatorig$precip, "yhat" = longdatpred[1:nrow(longdatorig), ]$precip)
-  y <- na.omit(y)
-  testmse <- mean((y$yhat - y$ytest)^2)
-  return(testmse)
-}
-
-```
-
-```{r pers_mod_plot, echo=FALSE, cache=TRUE}
-## It seems MSE increases as tau approaches the 6 months mark and decreases 
-## as it approaches the 12 month mark
-n <- 24
-msemat <- matrix(c(1:n, rep(NA, n)), nrow = n, ncol = 2, byrow = FALSE)
-colnames(msemat) <- c("tau", "mse")
-for(i in 1:n){
-  preddf <- predprecip(Pdat_df, i)
-  msemat[i, 2] <- testmse(Pdat_df, preddf)
-}
-
-ggplot(data=as.data.frame(msemat), aes(x=tau, y=mse, group=1)) +
-  geom_line()+
-  geom_point() +
-  xlab("tau: Number of Months Ahead of Prediction") +
-  ylab("Test MSE") +
-  labs(title = "Test MSE for Varying Values of tau")
-
-```
-
-```{r pers_mod_mse, echo=FALSE, cache=TRUE}
-## Persistence MSE for training/testing
-## predicted precipitations when tau = 6 months and limited to predicting 2017-2018
-jul16col <- which(colnames(Pdat_df) == "Jul2016")
-preddf <- predprecip(Pdat_df[, c(1:2, jul16col:ncol(Pdat_df))], 6)
-## Persistence MSE for 2017-2018
-testmsepers <- testmse(Pdat_df[, c(1:2, jul16col:ncol(Pdat_df))], preddf)
-
-```
-
-
 ## Random Forest
+
+- For random forest, predicted precip from sst
+- Ben should add his stuff about PCA and clust before this because it's based on that
+- used kpca clustering for land and sea and got average precip and avg sst for their respective clusters (5 clusters for sst and 12 clusters for precip)
+- used average sst in given month-year for each sea cluster as predictors of the precipitation of the same month-year
+- training set is time pre 2017 and testing set is 2017 and 2018
+- The number of variables randomly sampled as candidates at each split is set to 2
+
 
 ```{r rf1, echo=FALSE, cache=TRUE, eval=FALSE}
 # load 
@@ -831,13 +890,22 @@ rf.sst <- randomForest(landclusavg ~ SeaCluster1 + SeaCluster2 + SeaCluster3 + S
 load("all_precip_yyhat.RData")
 testmserfcont <- mean((all_precip_yyhat$yhat - all_precip_yyhat$Precipitation)^2)
 
+
 # plot(yhat.rf, all_long_test[, 8])
 # abline(0,1)
 
 ```
 
+## Random Forest with Lagged Data
 
-## RIDGE REGRESSION
+```{r rf3, echo=FALSE, cache=TRUE}
+load("all_yyhat_lag.RData")
+testmse_rflag <- mean((all_yyhat_lag$yhat - all_yyhat_lag$Precipitation)^2)
+
+```
+
+
+## Ridge Regression
 
 ```{r ridge1, echo=FALSE, cache=TRUE}
 # load 
@@ -900,7 +968,7 @@ test_mse_ridge
 ```
 
 
-## LASSO REGRESSION
+## Lasso Regression
 
 ```{r lasso1, echo=FALSE, cache=TRUE}
 
@@ -911,9 +979,9 @@ lasso_mod <- glmnet(x[train, ], y[train], alpha = 1,
 
 set.seed(12598)
 cv_out <- cv.glmnet(x[train, ], y[train], alpha = 1)
-plot(cv_out)
+
 bestlam <- cv_out$lambda.min
-bestlam
+
 
 
 ```
@@ -928,7 +996,7 @@ test_mse_lasso <- mean((lasso_pred - y_test)^2)
 ```
 
 
-## PRINCIPAL COMPONENT REGRESSION (PCR)
+## Principal Component Regression (PCR)
 
 ```{r pcr1, echo=FALSE, cache=TRUE}
 
@@ -937,7 +1005,7 @@ pcr.fit <- pcr(landclusavg ~ SeaCluster1 + SeaCluster2 + SeaCluster3 + SeaCluste
                scale = TRUE,
                validation = "CV")
 
-summary(pcr.fit)
+
 
 #validationplot(pcr.fit , val.type = "MSEP")
 
@@ -953,7 +1021,7 @@ testmse_PCRcont <- mean((pcr.pred - all_long_test[, 8])^2)
 ```
 
 
-## PARTIAL LEAST SQUARE (PLS)
+## Partial Least Squares (PLS)
 
 ```{r pls1, echo=FALSE, cache=TRUE}
 
@@ -976,7 +1044,10 @@ testmse_PLScont <- mean((pls.pred - all_long_test[, 8])^2)
 
 ```
 
-# GAM Regression on Continuous Data
+
+
+## GAM Regression on Continuous Data
+
 ```{r gam, echo=FALSE, cache=TRUE, eval=FALSE}
 ## BenREADME: I turned this off for now because I am not sure where the training data is coming from.
 gam.1<- gam(Precipitation~s(SeaCluster1,2) +SeaCluster2 + SeaCluster3 + SeaCluster4 + SeaCluster5, data = train)
@@ -996,7 +1067,7 @@ The essence of this research is to find a way to use SST at some time point to p
 
 One such method is convolutional neural networks (CNN) which are known to perform well on image-type data in both regression and classification contexts. The following subsections will describe the four best models from a selection of fifteen total models considered. Also note that, as in previous sections, the training data is contained up through 2016 and the test data includes 2017 and the two months in 2018.
 
-In, all five different categories of models were considered, each one containing three models: 
+In all, five different categories of models were considered, each one containing three models: 
 
   - Predicting precipitation at time $\tau$ from SST at time $\tau$
   - Predicting precipitation at time $\tau + 6$ from SST at time $\tau$ (6 month lag)
@@ -1051,7 +1122,7 @@ ggplot() +
 ```
 
 
-The first CNN was able to be trained now that the data were formatted accordingly. The CNN that performed best in this case contained a single convolution layer, a flatten, layer, 2 dense layers, and an output layer. Batch normalization was used between the dense layers. MSE was used as the loss function. A detailed summary is shown in the table below. This model was able to predict the averages of the four clusters with and MSE of 0.726. When expanding the predictions back to the original data set the MSE increased (as expected) 3.01.
+The first CNN was able to be trained now that the data were formatted accordingly. The CNN that performed best in this case contained a single convolution layer, a flatten, layer, 2 dense layers, and an output layer. Batch normalization was used between the dense layers and MSE was used as the loss function. A detailed summary is shown in the table below. This model was able to predict the averages of the four clusters with and MSE of 0.726. When expanding the predictions back to the original data set the MSE increased (as expected) to 3.01.
 
 
 ```{r include=TRUE, echo = FALSE}
@@ -1091,7 +1162,7 @@ kable(tibble(
 #### Predict Modal Temperature Category From Naive Regions with 6-Month Lag  \newline
 
 
-The precipitation data can also described in a categorical format representing low, normal, or high values. The normal category includes the 25th - 75th quantiles of data for the particular year and the low and high categories follow either as precipitation below the 25th quantile or above the 75th quantile respectively. The categorical data were then mapped to the four naive regions accordingly for each month and year. A 6-month lag was finally applied to the data such that the SST value at time $\tau$ predicts the precipitation at time $\tau + 6$ and the modal category for each region was calculated for prediction.
+The precipitation data can also be described in a categorical format representing low, normal, or high values. The normal category includes the 25th - 75th quantiles of data for the particular year and the low and high categories follow either as precipitation below the 25th quantile or above the 75th quantile respectively. The categorical data were then mapped to the four naive regions accordingly for each month and year. A 6-month lag was finally applied to the data such that the SST value at time $\tau$ predicts the precipitation at time $\tau + 6$ and the modal category for each region was calculated for prediction.
 
 The best CNN found contains a convolutional layer followed by a series of dropout, flattening, and dense layers described in more detail in the table below. Also note that based on the way the data were formatted, sparse categorical crossentropy was used for the loss function. The accuracy of the model when predicting the category for each cluster was 0.713, and decreased (as expected) to 0.553 when expanding the predictions back to the full data set.
 
@@ -1140,9 +1211,9 @@ kable(tibble(
 #### Predict Average Temperature From KPCA Regions  \newline
 
 
-Based on the results achieved in the previous sections with the naive regions, we wanted to explore more methodical ways of creating temperature regions. One such way emerged from the results of the KPCA analysis done on the temperature data from a previous region. Using those results, the temperature data were separated into twelve distinct regions displayed below:
+Based on the results achieved in the previous sections with the naive regions, we wanted to explore more methodical ways of creating temperature regions. One such way emerged from the results of the KPCA analysis done on the temperature data from a previous region. Using those results, the temperature data were separated into twelve distinct regions displayed previously in the KPCA section.
 
-```{r, include = TRUE, out.width = "75%", fig.align='center', echo = FALSE}
+```{r, include = FALSE, out.width = "75%", fig.align='center', echo = FALSE}
 
 ggplot() +
   coord_fixed(ratio = 1) +
@@ -1270,11 +1341,13 @@ MSE_KPCA_cont = 2.47
 df <- data.frame("Model" = c("Baseline: Climatology",
                              "Baseline: Persistence",
                              "Random Forest",
+                             "Random Forest, Lagged Data",
                              "Ridge Regression",
                              "Lasso Regression",
                              "CNN: Naive Regions, Continuous Temp",
                              "CNN: KPCA Regions, Continuous Temp"),
                  "Test MSE" = c(MSE_clim_avg, testmsepers, testmserfcont,
+                                testmse_rflag,
                                 test_mse_ridge, test_mse_lasso,
                                 MSE_CNN_naive_cont, MSE_KPCA_cont))
 
@@ -1288,16 +1361,15 @@ Accuracy_naive_cat_lag = 0.553
 Accuracy_KPCA_cat = 0.347
 
 df2 <- data.frame("Model" = c("Baseline: Climatology",
-                              "Baseline: Persistence",
                               "CNN: Naive Regions, Categorical Temp",
                               "CNN: KPCA Regions, Categorical Temp"),
-                  "Test Accuracy" = c(Accuracy_climatology, testmsepers, 
-                                      MSE_CNN_naive_cont, MSE_KPCA_cont))
+                  "Test Accuracy" = c(Accuracy_climatology, 
+                                      Accuracy_naive_cat_lag, Accuracy_KPCA_cat))
 
 print(xtable(df2, caption = "Test Accuracy Values"), include.rownames = FALSE)
 ```
 
-## Conclusion
+# Conclusion
 
 
 One issue that arose in the CCN analysis using the categorical precipitation was that the majority of locations have "normal" precipitation levels. Even when considering different class weights to account for the differences, it was difficult for the model to accurately predict the true categories. Future analysis could attempt to improve these results by investigating different values of $\tau$ in the lag models, devising a different methodology for categorizing precipitation, **ANYTHING ELSE??**
