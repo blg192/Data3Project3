@@ -74,7 +74,7 @@ load("data_in_dfs.RData")
 ```
 
 # Introduction
-Meteorologists study long and hard to predict weather patterns, day in and day out. Anticipating precipitation in North America is not only a convenience for the general public, but a necessity for farmers and agriculturalists. The importance of clean water is a secret to no one. Clean water is not only a key factor in the survival of nearly all living species, but also a key resource for power and production in the modern world. From food production to electricity, water can be used in many different forms for many important aspects of the human experience. Predicting precipitation and subsequently predicting to some extent the frequency and volume of available freshwater is a valuable and essential analysis. This study looks to examine the relationship between sea surface temperatures (henceforth SST) patterns in the tropical Pacific Ocean and precipitation over North America. It was our desire to be able to predict precipitation levels based on SST, both contemporaneously and on a future-time basis. We used several different methods to predict the precipitation outcomes as accurately as possible, including: **insert all methods here**. 
+Meteorologists study long and hard to predict weather patterns, day in and day out. Anticipating precipitation in North America is not only a convenience for the general public, but a necessity for farmers and agriculturalists. The importance of clean water is a secret to no one. Clean water is not only a key factor in the survival of nearly all living species, but also a key resource for power and production in the modern world. From food production to electricity, water can be used in many different forms for many important aspects of the human experience. Predicting precipitation and subsequently predicting to some extent the frequency and volume of available freshwater is a valuable and essential analysis. This study looks to examine the relationship between sea surface temperatures (henceforth SST) patterns in the tropical Pacific Ocean and precipitation over North America. It was our desire to be able to predict precipitation levels based on SST, both contemporaneously and on a future-time basis. We used several different methods to predict the precipitation outcomes as accurately as possible, including: dimension reduction by principal components analysis, LLE, and Laplacian Eigenmaps, persistence and climatology baseline models, random forests, ridge regression, lasso regression, GAM regression, and convolutional neural networks. 
 
 # Exploratory Data Analysis
 
@@ -1150,7 +1150,7 @@ ggplot() +
 ```
 
 
-The first CNN was able to be trained now that the data were formatted accordingly. The CNN that performed best in this case contained a single convolution layer, a flatten, layer, 2 dense layers, and an output layer. Batch normalization was used between the dense layers and MSE was used as the loss function. A detailed summary is shown in the table below. This model was able to predict the averages of the four clusters with and MSE of 0.726. When expanding the predictions back to the original data set the MSE increased (as expected) to 3.01.
+The first CNN was able to be trained now that the data were formatted accordingly. The CNN that performed best in this case contained a single convolution layer, a flatten layer, 2 dense layers, and an output layer. Batch normalization was used between the dense layers and MSE was used as the loss function. A detailed summary is shown in the table below. This model was able to predict the averages of the four clusters with and MSE of 0.726. When expanding the predictions back to the original data set the MSE increased (as expected) to 3.01.
 
 
 ```{r include=TRUE, echo = FALSE}
@@ -1400,8 +1400,9 @@ print(xtable(df2, caption = "Test Accuracy Values"), include.rownames = FALSE)
 
 # Conclusion
 
+Although we had some models with low test MSE and fair to good accuracy, we were not able to beat the climatology baseline. The CNN models generally performed the best out of our models, with the random forest using the lagged data falling in between two of the CNN models' test MSE values.
 
-One issue that arose in the CCN analysis using the categorical precipitation was that the majority of locations have "normal" precipitation levels. Even when considering different class weights to account for the differences, it was difficult for the model to accurately predict the true categories. Future analysis could attempt to improve these results by investigating different values of $\tau$ in the lag models, devising a different methodology for categorizing precipitation, **ANYTHING ELSE??**
+One issue that arose in the CCN analysis using the categorical precipitation was that the majority of locations have "normal" precipitation levels. Even when considering different class weights to account for the differences, it was difficult for the model to accurately predict the true categories. Future analysis could attempt to improve these results by investigating different values of $\tau$ in the lag models and devising a different methodology for categorizing precipitation, such as using different quantile values as the boundaries or using a method other than quantiles for categorizing the data.
 
 
 
