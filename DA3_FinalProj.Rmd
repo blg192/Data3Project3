@@ -670,7 +670,7 @@ remove(PrecipSVD, rand2decomp, Pkpca2, Pkpcarand2, Plleres, PLE, MonthlyPrecip, 
 
 
 ## Step 1
-## transform univariate dataset into supervised learning problem
+## transform univariate data set into supervised learning problem
 ## load the data set and create a lagged representation
 ## i.e. given the observation at t predict the observation at t + tau
 predprecip <- function(df, tau){
@@ -695,7 +695,7 @@ predprecip <- function(df, tau){
 preddf <- predprecip(Pdat_df, 6)
 
 ## Step 2
-## establish train and test datasets for test harness
+## establish train and test data sets for test harness
 ## This isn't necessary, but if we want to add it we can
 
 ## Step 3
