@@ -42,6 +42,7 @@ library(randomForest)
 library(BART)
 library(xtable)
 library(pls)
+library(gam) ## GAMs
 options(xtable.comment = FALSE)
 
 
@@ -778,7 +779,7 @@ ggplot(data=as.data.frame(msemat), aes(x=tau, y=mse, group=1)) +
   geom_point() +
   xlab("tau: Number of Months Ahead of Prediction") +
   ylab("Test MSE") +
-  labs(title = "Test MSE for Varying Values of tau")
+  labs(title = "Test MSE for Varying Values of tau") + form
 
 ```
 
@@ -974,6 +975,19 @@ pls.pred <- predict(pls.fit, newdata = (all_long_test[,c(-1, -7)]), ncomp = 1)
 testmse_PLScont <- mean((pls.pred - all_long_test[, 8])^2)
 
 ```
+
+# GAM Regression on Continuous Data
+```{r gam, echo=FALSE, cache=TRUE, eval=FALSE}
+## BenREADME: I turned this off for now because I am not sure where the training data is coming from.
+gam.1<- gam(Precipitation~s(SeaCluster1,2) +SeaCluster2 + SeaCluster3 + SeaCluster4 + SeaCluster5, data = train)
+
+```
+
+The generalized linear approach proved to be less than ideal. The idea of approaching the data using GAM was the nonlinear relationships between the individual clusters and the precipitation data would be modeled while maintaining the additive nature of a linear model. Using the KPCA regions with continuous data as the response, we predicted the precipitation at a given time $\tau$ given the SST clustered data at the same time $\tau$. I began by running the GAM model without adjusting for nonlinearity for each SST cluster, to find that all of the variables were significant linearly, though barely so for SeaCluster3. Knowing this, I wanted to experiment with the nonlinearity between some of the clusters and the response, therefore I opted for smoothing splines on the first two SST clusters with degrees of freedom 2. SeaCluster1 and SeaCluster2 both proved to be significant at with 2 degrees of freedom. 
+
+The GAM model proved to predict precipitation levels using SST data with very low accuracy. Against the 2017/18 test data, the best GAM model obtained an MSE of 8.5, with a smoothing spline on the first cluster. The following plot models the nonlinear relationship between the first SST cluster and the precipitation:
+
+![](SST1.png)
 
 
 ## Convolutional Neural Networks
