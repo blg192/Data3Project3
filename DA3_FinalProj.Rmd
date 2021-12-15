@@ -656,14 +656,9 @@ remove(PrecipSVD, rand2decomp, Pkpca2, Pkpcarand2, Plleres, PLE, MonthlyPrecip, 
 
 # Methods Considered
 
-
-
 ## Baseline: Persistence
-- $\tau$ represents number of months before predicted precipitation date
-- test MSE increases as tau approaches 6 month intervals away from the predicted date and decreases as tau approaches 12 month intervals away from the predicted date
-- Basically MSE is lower when using data from the same time of year as the predicted date
 
-```{r pers_mod, echo=FALSE, message=FALSE}
+```{r pers_mod, echo=FALSE, message=FALSE, eval=FALSE}
 # Persistence Predictions (pred_(t + tau) = pred_t) ##############
 
 
@@ -721,33 +716,44 @@ testmse <- function(Pdat_df, preddf){
 
 ```
 
+```{r pers_mod_mse, echo=FALSE, cache=TRUE}
+load("pers_mse.RData")
+## overall
+# preddf <- predprecip(Pdat_df, 6)
+# testmsepersall <- testmse(Pdat_df, preddf)
+testmsepersall <- testmse
+
+## Persistence MSE for training/testing
+## predicted precipitations when tau = 6 months and limited to predicting 2017-2018
+# jul16col <- which(colnames(Pdat_df) == "Jul2016")
+# preddf <- predprecip(Pdat_df[, c(1:2, jul16col:ncol(Pdat_df))], 6)
+## Persistence MSE for 2017-2018
+# testmsepers <- testmse(Pdat_df[, c(1:2, jul16col:ncol(Pdat_df))], preddf)
+testmsepers <- testmse_pers
+
+```
+
+The persistence model predicts that the precipitation for a location on a given date will be equal to the recorded precipitation at the same location $\tau$ months previously. For this baseline model, it seems that test MSE increases as $\tau$ approaches 6 month intervals away from the predicted date and decreases as $\tau$ approaches 12 month intervals away from the predicted date. These results make sense because this would mean that the error is highest when using weather data from the opposite time of year seasonally for prediction, and the error is lowest when using data from the same time of year seasonally for prediction. When $\tau = 6$ and all data are accounted for, the test mse was `r round(testmsepersall, 2)`. For the same value of $\tau$ when the data is limited to the testing set of data from 2017--2018 the test mse was `r round(testmsepers, 2)`. Although this MSE value is not as good as some of the others evident in the plot below, this is the value we'll be using for comparison because it matches the testing/training data set up and the $\tau$ values -- when applicable -- to our other models, so this is most suitable for comparison.
+
 ```{r pers_mod_plot, echo=FALSE, cache=TRUE}
 ## It seems MSE increases as tau approaches the 6 months mark and decreases 
 ## as it approaches the 12 month mark
-n <- 24
-msemat <- matrix(c(1:n, rep(NA, n)), nrow = n, ncol = 2, byrow = FALSE)
-colnames(msemat) <- c("tau", "mse")
-for(i in 1:n){
-  preddf <- predprecip(Pdat_df, i)
-  msemat[i, 2] <- testmse(Pdat_df, preddf)
-}
+# n <- 24
+# msemat <- matrix(c(1:n, rep(NA, n)), nrow = n, ncol = 2, byrow = FALSE)
+# colnames(msemat) <- c("tau", "mse")
+# for(i in 1:n){
+#   preddf <- predprecip(Pdat_df, i)
+#   msemat[i, 2] <- testmse(Pdat_df, preddf)
+# }
+## above saved in this file
+load("pers_msemat.RData")
 
 ggplot(data=as.data.frame(msemat), aes(x=tau, y=mse, group=1)) +
   geom_line()+
   geom_point() +
-  xlab("tau: Number of Months Ahead of Prediction") +
+  xlab("tau: Number of Months Previous to Prediction") +
   ylab("Test MSE") +
   labs(title = "Test MSE for Varying Values of tau")
-
-```
-
-```{r pers_mod_mse, echo=FALSE, cache=TRUE}
-## Persistence MSE for training/testing
-## predicted precipitations when tau = 6 months and limited to predicting 2017-2018
-jul16col <- which(colnames(Pdat_df) == "Jul2016")
-preddf <- predprecip(Pdat_df[, c(1:2, jul16col:ncol(Pdat_df))], 6)
-## Persistence MSE for 2017-2018
-testmsepers <- testmse(Pdat_df[, c(1:2, jul16col:ncol(Pdat_df))], preddf)
 
 ```
 
@@ -847,14 +853,6 @@ ggplot() +
 
 ## Random Forest
 
-- For random forest, predicted precip from sst
-- Ben should add his stuff about PCA and clust before this because it's based on that
-- used kpca clustering for land and sea and got average precip and avg sst for their respective clusters (5 clusters for sst and 12 clusters for precip)
-- used average sst in given month-year for each sea cluster as predictors of the precipitation of the same month-year
-- training set is time pre 2017 and testing set is 2017 and 2018
-- The number of variables randomly sampled as candidates at each split is set to 2
-
-
 ```{r rf1, echo=FALSE, cache=TRUE, eval=FALSE}
 # load 
 load("SST_clustwide.RData")
@@ -896,13 +894,15 @@ testmserfcont <- mean((all_precip_yyhat$yhat - all_precip_yyhat$Precipitation)^2
 
 ```
 
-## Random Forest with Lagged Data
-
 ```{r rf3, echo=FALSE, cache=TRUE}
 load("all_yyhat_lag.RData")
 testmse_rflag <- mean((all_yyhat_lag$yhat - all_yyhat_lag$Precipitation)^2)
 
 ```
+
+There were two random forest models built: One with the standard data and the other with lagged data. For the standard model, the averages of the SST KPCA clusters for given dates were used to predict the averages of the precipitation KPCA clusters for the same dates (SST was categorized into 5 regions and precipitation was categorized into 12 regions). For the lagged model, the averages of the SST KPCA clusters for given dates were used to predict the averages of the precipitation KPCA clusters 6 months after a given date. Once the predictions were made, these predictions based on the cluster averages would then be assigned to the corresponding date and location of the larger original data set (i.e., individual observations instead of the averages) so that test MSE could be calculated in the context of individual observations instead of averages. 
+
+For both models, the training set consisted of all observations before 2017, and the testing set consisted of the observations from 2017--2018. The number of variables randomly sampled as candidates at each split was set to 2 for both models. For both models, all of the predictors have about equal importance. The values are so close that it seems all of the SST cluster averages contribute, which makes sense. The test MSE for the standard model was `r round(testmserfcont, 2)`, and the test MSE for the model with the lagged data was `r round(testmse_rflag, 2)`.
 
 
 ## Ridge Regression
@@ -963,7 +963,6 @@ ridge_pred <- predict(ridge_mod, s = bestlam,
                       newx = x[test, ])
 
 test_mse_ridge <- mean((ridge_pred - y_test)^2)
-test_mse_ridge
 
 ```
 
