@@ -95,7 +95,7 @@ LongLat <- SST_df[, 1:2]
 MonthlySST <- SST_df[ , -c(1,2)]
 
 ## For ggplots
-form <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+ggform <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
               panel.background = element_blank(), axis.line = element_line(colour = "black"))
 
 ## Start with SVD to get an idea of Prin Comp needed
@@ -176,7 +176,7 @@ SSTsingvals <- melt(SSTsingvals, id.vars = 'Component',
                     variable.name = 'Data', value.name = 'SingVal')
 
 singvalplot <- ggplot(SSTsingvals, aes(x = Component, y = SingVal, color = Data)) + 
-               geom_line() + form + xlab('Principal Component') + ylab('Singular Value') + labs(fill = 'Data Set') + 
+               geom_line() + ggform + xlab('Principal Component') + ylab('Singular Value') + labs(fill = 'Data Set') + 
                theme(legend.position = c(.8, .8)) + ggtitle('PCA Singular Values')
     
 
@@ -190,7 +190,7 @@ singvalplot <- ggplot(SSTsingvals, aes(x = Component, y = SingVal, color = Data)
 
 ## Suggests 33 PCs (97% Var)
 eigenplot <- ggplot(kpcaeig, aes(x = Component, y = EigenVal, color = Data)) + 
-             geom_line() + form + xlab('Principal Component') + ylab('Eigen Value') + labs(fill = 'Data Set') + 
+             geom_line() + ggform + xlab('Principal Component') + ylab('Eigen Value') + labs(fill = 'Data Set') + 
              theme(legend.position = c(.8, .8)) + ggtitle('KPCA Eigen Values')
 
 ggarrange(singvalplot, eigenplot, ncol = 1, nrow = 2)
@@ -199,13 +199,13 @@ ggarrange(singvalplot, eigenplot, ncol = 1, nrow = 2)
 ```{r SSTPC1, echo=FALSE, results='asis', fig.cap = '\\label{fig:SSTPC1s} Plot of PC1 from PCA and KPCA for SST data.', fig.align = 'center'}
 ## Plot PC 1
 SSTSVDPC1 <- ggplot(SSTUD, aes(x = Longitude, y = Latitude, fill = PC1)) + 
-             coord_fixed(ratio = 1) + geom_raster(alpha = 1) + form + 
+             coord_fixed(ratio = 1) + geom_raster(alpha = 1) + ggform + 
              scale_fill_gradientn(na.value = "white", colours = c("yellow", "orange", "green", "blue")) +
              ggtitle('PCA PC1')
 
 ## Plot PC 1
 SSTkpcaPC1 <- ggplot(KPCApcs, aes(x = Longitude, y = Latitude, fill = PC1)) + 
-              coord_fixed(ratio = 1) + geom_raster(alpha = 1) + form + 
+              coord_fixed(ratio = 1) + geom_raster(alpha = 1) + ggform + 
               scale_fill_gradientn(na.value = "white", colours = c("yellow", "orange", "green", "blue")) +
               ggtitle('KPCA PC1')
 
@@ -238,7 +238,7 @@ The Laplacian Eigenmap also reduced dimensionality down to two. Clustering indic
 ```{r clusterplot1, echo = FALSE, results='asis', fig.cap = '\\label{fig:SSTClusters} Best clustering solutions for each of the dimension reduction methods for SST data.', fig.align = 'center', fig.height=9}
 ## SVD plot
 SSTSVDClust <- ggplot(SVDclustout, aes(x = Longitude, y = Latitude,  fill = Cluster)) + 
-               coord_fixed(ratio = 1) + geom_raster(alpha = 1) + form + ggtitle('Clustering from PCA') +
+               coord_fixed(ratio = 1) + geom_raster(alpha = 1) + ggform + ggtitle('Clustering from PCA') +
                 theme(legend.key.size = unit(.5, 'cm'),
                      legend.key.height = unit(.5, 'cm'),
                      legend.key.width = unit(.5, 'cm'),
@@ -247,7 +247,7 @@ SSTSVDClust <- ggplot(SVDclustout, aes(x = Longitude, y = Latitude,  fill = Clus
 
 ## KPCA plot
 SSTKPCAClust <- ggplot(KPCAclustout, aes(x = Longitude, y = Latitude,  fill = Cluster)) +
-                coord_fixed(ratio = 1) + geom_raster(alpha = 1) + form + ggtitle('Clustering from KPCA') +
+                coord_fixed(ratio = 1) + geom_raster(alpha = 1) + ggform + ggtitle('Clustering from KPCA') +
                 theme(legend.key.size = unit(.5, 'cm'),
                      legend.key.height = unit(.5, 'cm'),
                      legend.key.width = unit(.5, 'cm'),
@@ -256,7 +256,7 @@ SSTKPCAClust <- ggplot(KPCAclustout, aes(x = Longitude, y = Latitude,  fill = Cl
 
 ## LLE plot
 SSTLLEClust <- ggplot(LLEclustout, aes(x = Longitude, y = Latitude,  fill = Cluster)) + 
-               coord_fixed(ratio = 1) + geom_raster(alpha = 1) + form + ggtitle('Clustering from LLE') +
+               coord_fixed(ratio = 1) + geom_raster(alpha = 1) + ggform + ggtitle('Clustering from LLE') +
                theme(legend.key.size = unit(.5, 'cm'),
                      legend.key.height = unit(.5, 'cm'),
                      legend.key.width = unit(.5, 'cm'),
@@ -265,7 +265,7 @@ SSTLLEClust <- ggplot(LLEclustout, aes(x = Longitude, y = Latitude,  fill = Clus
 
 ## LE plot
 SSTLEClust <- ggplot(LEclustout, aes(x = Longitude, y = Latitude,  fill = Cluster)) + 
-              coord_fixed(ratio = 1) + geom_raster(alpha = 1) + form + ggtitle('Clustering from LE') +
+              coord_fixed(ratio = 1) + geom_raster(alpha = 1) + ggform + ggtitle('Clustering from LE') +
               theme(legend.key.size = unit(.5, 'cm'),
                      legend.key.height = unit(.5, 'cm'),
                      legend.key.width = unit(.5, 'cm'),
@@ -277,7 +277,7 @@ ggarrange(SSTSVDClust, SSTKPCAClust, SSTLLEClust, SSTLEClust, ncol = 1, nrow = 4
 
 ```{r clustbypc, echo = FALSE, results='asis', fig.cap = '\\label{fig:SSTClustbypc} Location clusters plotted by the first two PCs or manifolds of each dimension reduction techinque.', fig.align = 'center'}
 SSTSVDPCplot <- ggplot(data = data.frame(SSTUD, SVDclustout), aes(x = PC1, y = PC2, color = Cluster)) + 
-                geom_point(size = .3) + form + xlab('Principal Component 1') + 
+                geom_point(size = .3) + ggform + xlab('Principal Component 1') + 
                 ylab('Principal Component 2') + ggtitle('PCA Clusters') +
                 theme(legend.key.size = unit(.25, 'cm'),
                      legend.key.height = unit(.25, 'cm'),
@@ -287,7 +287,7 @@ SSTSVDPCplot <- ggplot(data = data.frame(SSTUD, SVDclustout), aes(x = PC1, y = P
 
 SSTKPCAPCplot <- ggplot(data = data.frame(KPCApcs, KPCAclustout), 
                         aes(x = PC1, y = PC2, color = Cluster)) + 
-                 geom_point(size = .3) + form + xlab('Principal Component 1') + 
+                 geom_point(size = .3) + ggform + xlab('Principal Component 1') + 
                  ylab('Principal Component 2') + ggtitle('KPCA Clusters') +
                  theme(legend.key.size = unit(.25, 'cm'),
                      legend.key.height = unit(.25, 'cm'),
@@ -296,7 +296,7 @@ SSTKPCAPCplot <- ggplot(data = data.frame(KPCApcs, KPCAclustout),
                      legend.text = element_text(size=6)) 
 
 SSTLLEdimplot <- ggplot(data = data.frame(Ymat, LLEclustout), aes(x = Ymat[, 1], y = Ymat[, 2], color = Cluster)) +
-                 geom_point(size = .3) + form + xlab('Dimension 1') + 
+                 geom_point(size = .3) + ggform + xlab('Dimension 1') + 
                  ylab('Dimension 2') + ggtitle('LLE Clusters') +
                  theme(legend.key.size = unit(.25, 'cm'),
                      legend.key.height = unit(.25, 'cm'),
@@ -305,7 +305,7 @@ SSTLLEdimplot <- ggplot(data = data.frame(Ymat, LLEclustout), aes(x = Ymat[, 1],
                      legend.text = element_text(size=6)) + guides(fill=guide_legend(ncol=2))
 
 SSTLEmanifolds <- ggplot(data = data.frame(LEout, LEclustout), aes(x = LEout[, 1], y = LEout[, 2], color = Cluster)) +
-                  geom_point(size = .3) + form + xlab('Manifold 1') + 
+                  geom_point(size = .3) + ggform + xlab('Manifold 1') + 
                   ylab('Manifold 2') + ggtitle('LE Clusters') +
                   theme(legend.key.size = unit(.25, 'cm'),
                      legend.key.height = unit(.25, 'cm'),
@@ -407,14 +407,14 @@ Precipsingvals <- melt(Precipsingvals, id.vars = 'Component',
                     variable.name = 'Data', value.name = 'SingVal')
 
 singvalplot <- ggplot(Precipsingvals[c(1:400, 843:1243),], aes(x = Component, y = SingVal, color = Data)) + 
-               geom_line() + form + xlab('Principal Component') + ylab('Singular Value') + labs(fill = 'Data Set') + 
+               geom_line() + ggform + xlab('Principal Component') + ylab('Singular Value') + labs(fill = 'Data Set') + 
                theme(legend.position = c(.8, .8)) + ggtitle('PCA Singular Values')
     
 
 
 ## Suggests 25 PCs (97% Var)
 eigenplot <- ggplot(Pkpcaeig[c(1:400, 843:1243),], aes(x = Component, y = EigenVal, color = Data)) + 
-             geom_line() + form + xlab('Principal Component') + ylab('Eigen Value') + labs(fill = 'Data Set') + 
+             geom_line() + ggform + xlab('Principal Component') + ylab('Eigen Value') + labs(fill = 'Data Set') + 
              theme(legend.position = c(.8, .8)) + ggtitle('KPCA Eigen Values')
 
 ggarrange(singvalplot, eigenplot, ncol = 1, nrow = 2)
@@ -432,7 +432,7 @@ PrecipSVDPC1 <- ggplot(PrecipUD, aes(x = Longitude, y = Latitude, fill = PC1)) +
                              aes(x = Longitude, y = Latitude, group = group),
                              inherit.aes = F, colour = 'black', 
                              fill = NA, lwd = 0.5) + 
-                form + scale_fill_gradientn(na.value = "white", 
+                ggform + scale_fill_gradientn(na.value = "white", 
                                             colours = c("yellow", "orange", "green", "blue")) +
                 ggtitle('PCA PC1')
 
@@ -444,7 +444,7 @@ PrecipkpcaPC1 <- ggplot(PKPCApcs, aes(x = Longitude, y = Latitude, fill = PC1)) 
                               aes(x = Longitude, y = Latitude, group = group),
                               inherit.aes = F, colour = 'black', 
                               fill = NA, lwd = 0.5) +
-                 form + 
+                 ggform + 
                  scale_fill_gradientn(na.value = "white", 
                                       colours = c("yellow", "orange", "green", "blue")) +
                  ggtitle('KPCA PC1')
@@ -490,7 +490,7 @@ PrecipSVDClust <- ggplot(PSVDclustout, aes(x = Longitude, y = Latitude,  fill = 
                              aes(x = Longitude, y = Latitude, group = group),
                              inherit.aes = F, colour = 'black', 
                              fill = NA, lwd = 0.5) +
-                  form + ggtitle('Clustering from PCA') +
+                  ggform + ggtitle('Clustering from PCA') +
                   theme(legend.key.size = unit(.5, 'cm'),
                         legend.key.height = unit(.5, 'cm'),
                         legend.key.width = unit(.5, 'cm'),
@@ -504,7 +504,7 @@ PrecipKPCAClust <- ggplot(PKPCAclustout, aes(x = Longitude, y = Latitude,  fill 
                              aes(x = Longitude, y = Latitude, group = group),
                              inherit.aes = F, colour = 'black', 
                              fill = NA, lwd = 0.5) +
-                   form + ggtitle('Clustering from KPCA') +
+                   ggform + ggtitle('Clustering from KPCA') +
                    theme(legend.key.size = unit(.5, 'cm'),
                          legend.key.height = unit(.5, 'cm'),
                          legend.key.width = unit(.5, 'cm'),
@@ -518,7 +518,7 @@ PrecipLLEClust <- ggplot(PLLEclustout, aes(x = Longitude, y = Latitude,  fill = 
                              aes(x = Longitude, y = Latitude, group = group),
                              inherit.aes = F, colour = 'black', 
                              fill = NA, lwd = 0.5) +
-                  form + ggtitle('Clustering from LLE') +
+                  ggform + ggtitle('Clustering from LLE') +
                   theme(legend.key.size = unit(.5, 'cm'),
                         legend.key.height = unit(.5, 'cm'),
                         legend.key.width = unit(.5, 'cm'),
@@ -532,7 +532,7 @@ PrecipLEClust <- ggplot(PLEclustout, aes(x = Longitude, y = Latitude,  fill = Cl
                              aes(x = Longitude, y = Latitude, group = group),
                              inherit.aes = F, colour = 'black', 
                              fill = NA, lwd = 0.5) +
-                 form + ggtitle('Clustering from LE') +
+                 ggform + ggtitle('Clustering from LE') +
                  theme(legend.key.size = unit(.5, 'cm'),
                        legend.key.height = unit(.5, 'cm'),
                        legend.key.width = unit(.5, 'cm'),
@@ -544,7 +544,7 @@ ggarrange(PrecipSVDClust, PrecipKPCAClust, PrecipLLEClust, PrecipLEClust, ncol =
 
 ```{r clustbypc2, echo = FALSE, results='asis', fig.cap = '\\label{fig:PrecipClustbypc} Location clusters plotted by the first two PCs or manifolds of each dimension reduction techinque.', fig.align = 'center'}
 PrecipSVDPCplot <- ggplot(data = data.frame(PrecipUD, PSVDclustout), aes(x = PC1, y = PC2, color = Cluster)) + 
-                   geom_point(size = .3) + form + xlab('Principal Component 1') + 
+                   geom_point(size = .3) + ggform + xlab('Principal Component 1') + 
                    ylab('Principal Component 2') + ggtitle('PCA Clusters') +
                    theme(legend.key.size = unit(.25, 'cm'),
                          legend.key.height = unit(.25, 'cm'),
@@ -554,7 +554,7 @@ PrecipSVDPCplot <- ggplot(data = data.frame(PrecipUD, PSVDclustout), aes(x = PC1
 
 PrecipKPCAPCplot <- ggplot(data = data.frame(PKPCApcs, PKPCAclustout), 
                         aes(x = PC1, y = PC2, color = Cluster)) + 
-                    geom_point(size = .3) + form + xlab('Principal Component 1') + 
+                    geom_point(size = .3) + ggform + xlab('Principal Component 1') + 
                     ylab('Principal Component 2') + ggtitle('KPCA Clusters') +
                     theme(legend.key.size = unit(.25, 'cm'),
                           legend.key.height = unit(.25, 'cm'),
@@ -563,7 +563,7 @@ PrecipKPCAPCplot <- ggplot(data = data.frame(PKPCApcs, PKPCAclustout),
                           legend.text = element_text(size=6)) 
 
 PrecipLLEdimplot <- ggplot(data = data.frame(PYmat, PLLEclustout), aes(x =  PYmat[, 1], y = PYmat[, 2], color = Cluster)) +
-                    geom_point(size = .3) + form + xlab('Dimension 1') + 
+                    geom_point(size = .3) + ggform + xlab('Dimension 1') + 
                     ylab('Dimension 2') + ggtitle('LLE Clusters') +
                     theme(legend.key.size = unit(.25, 'cm'),
                           legend.key.height = unit(.25, 'cm'),
@@ -572,7 +572,7 @@ PrecipLLEdimplot <- ggplot(data = data.frame(PYmat, PLLEclustout), aes(x =  PYma
                           legend.text = element_text(size=6)) + guides(fill=guide_legend(ncol=2))
 
 PrecipLEmanifolds <- ggplot(data = data.frame(PLEout, PLEclustout), aes(x = PLEout[, 1], y = PLEout[, 2], color = Cluster)) +
-                     geom_point(size = .3) + form + xlab('Manifold 1') + 
+                     geom_point(size = .3) + ggform + xlab('Manifold 1') + 
                      ylab('Manifold 2') + ggtitle('LE Clusters') +
                      theme(legend.key.size = unit(.25, 'cm'),
                            legend.key.height = unit(.25, 'cm'),
@@ -779,7 +779,7 @@ ggplot(data=as.data.frame(msemat), aes(x=tau, y=mse, group=1)) +
   geom_point() +
   xlab("tau: Number of Months Ahead of Prediction") +
   ylab("Test MSE") +
-  labs(title = "Test MSE for Varying Values of tau") + form
+  labs(title = "Test MSE for Varying Values of tau")
 
 ```
 
