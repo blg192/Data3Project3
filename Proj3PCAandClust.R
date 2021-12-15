@@ -301,7 +301,6 @@ PLE <- embed(MonthlyPrecip, .method = 'LaplacianEigenmaps')
 PLEout <- data.frame(Obs = 1:5390, LE@data@data)
 
 ## Cluster for Eigenmap
-## Cluster for LLE
 set.seed(662321)
 PLEbestK <- NbClust(PLEout[ , -1], method = 'kmeans',  min.nc = 2, max.nc = 20, index = "all")
 par(mfrow = c(1,1))
