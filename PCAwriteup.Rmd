@@ -34,18 +34,15 @@ load("data_in_dfs.RData") ## COMMENT OUT BEFORE COMBINE
 \let\proglang=\textsf
 \let\code=\texttt
 
-## PCA Methods and Clustering
+# Dimension Reduction and Clustering
 
-\ \ \ \ \ \ \ \ 
 In order to decrease dimensionality of the data set, we conduct a series of dimension reduction techniques and then use these results to create location based clusters. For dimension reduction of both the SST and precipitation data, we consider principal components analysis using the singular value decomposition (SVD), kernel PCA (KPCA), local linear embedding (LLE), and Laplacian Eigenmaps (LE). The number of principal components for the two PCAs are selected by assessing cumulative variance accounted for, comparing to randomized data, dimensional minimization, and impact on clustering clarity. Other factors such as kernel smoothing method for the KPCA and number of neighbors for LLE are also optimized. 
 
-\ \ \ \ \ \ \ \ 
-Determination of the number of regional clusters for each of the four dimensional reduction methods above is done with k-means clustering and aided with the \pkg{NbClust} package. This package uses 30 different indices to suggest an appropriate number of clusters and varies all combinations of number of clusters, distance measures, and clustering methods. The final number of clusters is decided using a 'majority rule' approach and looking at cluster clarity and complexity. Basically, the number of clusters with the most indices in agreement were considered and then of those the one with the most visually clear clusters when plotted were chosen. 
+Determination of the number of regional k-means clusters for each of the four dimensional reduction methods above is done with k-means clustering and aided with the \pkg{NbClust} package. This package uses 30 different indices to suggest an appropriate number of clusters and varies all combinations of number of clusters, distance measures, and clustering methods. The final number of clusters is decided using a 'majority rule' approach and looking at cluster clarity and complexity. Basically, the number of clusters with the most indices in agreement were considered and then of those the one with the most visually clear clusters when plotted were chosen. 
 
-\ \ \ \ \ \ \ \ 
 Results from each of the dimensional reduction methods and clustering are presented below for the SST and precipitation data sets. 
 
-### SST Results
+## SST Results
 
 ```{r SSTSVDsetup, include=FALSE, cache=TRUE}
 SST_df <- na.omit(SST_df)
@@ -102,12 +99,9 @@ if (file.exists('SSTdimreduce.RData')){
 }
 ```
 
-\ \ \ \ \ \ \ \ 
-First, the SST data set is converted into principal components (PCs) using SVD. The number of important components is assessed by looking at the number of components with singular values above those that are generated from a randomized data set. Singular values for each component for the true and random data set can be seen in Figure \ref{fig:eigenfig}. This suggests using 33 PCs which accounts for a total variance of `r round(SVDvaracc[33], 2)`%with the first component accounting for `r round(SVDvaracc[1], 2)`%. Figure \ref{fig:SSTPC1s} plots the weights associated with the first PC on the latitude and longitude values. 
+First, the SST data set is converted into principal components (PCs) using SVD. The number of important components is assessed by looking at the number of components with singular values above those that are generated from a randomized version of the data set. Singular values for each component for the true and random data set can be seen in Figure \ref{fig:eigenfig}. This suggests using 33 PCs which accounts for a total variance of `r round(SVDvaracc[33], 2)`%with the first component accounting for `r round(SVDvaracc[1], 2)`%. Figure \ref{fig:SSTPC1s} plots the weights associated with the first PC on the latitude and longitude values. 
 
-\ \ \ \ \ \ \ \ \ 
-Of the indices for determining the number of clusters from the suggested 33 PCs from the PCA, eight suggest two clusters, seven suggest three clusters, and seven suggest 20 clusters. Inspection of the clusters when plotted with latitude and longitude show a close similarity between having 2 and 3 clusters. The two cluster solution can be seen in Figure \ref{fig:SSTClusters} The addition of another cluster just adds another area around the central cluster in the two cluster solution. Using 20 clusters seems a little excessive in this case and lead to some very small areas that belonged to one cluster but were not near the main cluster. One point of note is that this clustering closely resembles the distribution of the first PC.
-
+Of the indices for determining the number of clusters from the suggested 33 PCs, eight suggest two clusters, seven suggest three clusters, and seven suggest 20 clusters. Inspection of the clusters when plotted with latitude and longitude show a close similarity between having 2 and 3 clusters. The two cluster solution can be seen in Figure \ref{fig:SSTClusters} The addition of another cluster just adds another area around the central cluster in the two cluster solution. Using 20 clusters seems a little excessive in this case and lead to some very small areas that belonged to one cluster but were not near the main cluster. One point of note is that this clustering closely resembles the distribution of the first PC.
 
 ```{r SSTKPCA, include = FALSE}
 #kpca2 <- kpca(MonthlySST, kernel = "vanilladot", kpar = list()) 
@@ -130,12 +124,9 @@ KPCAclustout <- data.frame(LongLat, Cluster = factor(KPCAclustres$cluster))
 colnames(KPCAclustout) <- c('Longitude', 'Latitude', 'Cluster')
 ```
 
-\ \ \ \ \ \ \ \ 
 A similar procedure was followed for the KPCA except multiple kernels were also assessed. Of these, the linear kernel function seems to perform the most efficiently. It takes fewer PCs and less tuning to account for a similar amount of variance as the other kernels do. Similarly, when comparing to random data, 32 components are suggested this time (Figure \ref{fig:eigenfig}). However, if we use the SVD as a base line, it is possible that only 6 components are needed because they account for `r round(SSTkpcavar[6], 2)`% of the variance. Figure \ref{fig:SSTPC1s} presents a plot of the first PC for the KPCA. 
 
-\ \ \ \ \ \ \ \ 
 Using these six components for clustering, seven indices suggest five as the best number of clusters, four suggest two clusters, and 3 suggest 6 or 20 clusters. So, five clusters seems to have the most support. The cluster structure here seems to break up the northern and eastern most sections of the pacific more with a bit of an alternating pattern, leaving a single cluster for the southwest area. The clustering can be seen in Figure \ref{fig:SSTClusters}.
-
 
 ```{r eigenfigs, echo=FALSE, results='asis', fig.cap = '\\label{fig:eigenfig} Plot of singular values and Eigen values for real and randomized SST data set for PCA and KPCA respectively. The PCs of the start performing worse than random after component 33 for the PCA and 32 for KPCA.', fig.align = 'center', out.width='90%'}
 ## Suggests 33 PCs (97% Var)
@@ -162,7 +153,6 @@ eigenplot <- ggplot(kpcaeig, aes(x = Component, y = EigenVal, color = Data)) +
 
 ggarrange(singvalplot, eigenplot, ncol = 1, nrow = 2)
 ```
-
 
 ```{r SSTPC1, echo=FALSE, results='asis', fig.cap = '\\label{fig:SSTPC1s} Plot of PC1 from PCA and KPCA for SST data.', fig.align = 'center'}
 ## Plot PC 1
@@ -199,10 +189,8 @@ LEclustout <- data.frame(LongLat, Cluster = factor(LEclustres$cluster))
 colnames(LEclustout) <- c('Longitude', 'Latitude', 'Cluster')
 ```
 
-\ \ \ \ \ \ \ \ 
 Dimensional reduction was also attempted using LLE and Laplacian Eigenmaps. For LLE, the optimum number of neighbors found for two intrinsic dimensions is 16. The proposed number of clusters by the indices is 10. This was suggest by six indices, followed closely by three clusters with five indices and two clusters with four indices. This is by far the most chaotic clustering seen in Figure \ref{fig:SSTClusters}. Many of the clusters are surround by other clusters.
 
-\ \ \ \ \ \ \ \ 
 The Laplacian Eigenmap also reduced dimensionality down to two. Clustering indices suggest that the optimal number of clusters is three with six indices. Two and four clusters could also be considered with 4 indices proposing each of those. Using three clusters, the Pacific is split into a single cluster to the west and two clusters in the east being split almost at the equator (Figure \ref{fig:SSTClusters}). 
 
 ```{r clusterplot1, echo = FALSE, results='asis', fig.cap = '\\label{fig:SSTClusters} Best clustering solutions for each of the dimension reduction methods for SST data.', fig.align = 'center', fig.height=9}
@@ -287,10 +275,10 @@ ggarrange(SSTSVDPCplot, SSTKPCAPCplot, SSTLLEdimplot, SSTLEmanifolds, ncol = 2, 
 ```
 
 ```{r cleanup, include=FALSE}
-remove(kpca2, kpcarand, lleres, LE, SSTSVD, randdecomp)
+remove(kpca2, kpcarand, lleres, LE, SSTSVD, randdecomp, MonthlySST, rand)
 ```
 
-### Precipitation Results
+## Precipitation Results
 
 ```{r precipsetup, include=FALSE}
 Pdat_df <- na.omit(Pdat_df)
@@ -341,12 +329,9 @@ if (file.exists('Precipdimreduce.RData')){
 }
 ```
 
-\ \ \ \ \ \ \ \ 
-The procedures for dimensional reduction for the precipitation data are similar to those above. Likewise, the number of important components is assessed by comparing the singular values of each PC from the real data to those that come from a randomized version of the data set. This suggests that 26 PCs should be considered. The PCs account for a total of `r round(PrecipSVDvaracc[26], 2)`% of the variance. The first PC accounts for `r round(PrecipSVDvaracc[1], 2)`. Figure \ref{fig:eigenfig2} shows the comparison of the singular values and Figure \ref{fig:PrecipPC1s} shows a plot of the first PC. 
+The procedures for dimensional reduction for the precipitation data are similar to those above. Likewise, the number of important components is assessed by comparing the singular values of each PC from the real data to those that come from a randomized version of the data set. This suggests that 26 PCs should be considered. The PCs account for a total of `r round(PrecipSVDvaracc[26], 2)`% of the variance. The first PC accounts for `r round(PrecipSVDvaracc[1], 2)`%. Figure \ref{fig:eigenfig2} shows the comparison of the singular values and Figure \ref{fig:PrecipPC1s} shows a plot of the first PC. 
 
-\ \ \ \ \ \ \ \ 
 The important PCs were once again used to create regional clusters for the precipitation data. Eight clustering indices suggest two as the best number of clusters, seven propose 4 clusters, and five propose 15. When using two clusters, the United States is split into a group containing the Pacific north west and states near the Mississippi river and eastward and a group containing the rest of the west. A four cluster solution more closely resembles the first principal component. Similar to the SST data set. This is seen in Figure \ref{fig:PrecipClusters}. 
-
 
 ```{r precipkpca, include=FALSE}
 #Pkpca2 <- kpca(MonthlyPrecip, kernel = "vanilladot", kpar = list()) ##maybe 2-4 PCs? Better than Random suggests 25.
@@ -370,12 +355,9 @@ PKPCApcs <- data.frame(LongLat2, PKPCApcs)
 colnames(PKPCApcs) <- c('Longitude', 'Latitude', paste0('PC', 1:4))
 ```
 
-\ \ \ \ \ \ \ \ 
 The KPCA model that provided the largest dimensional reduction without having to tune applies a linear kernel. When compared to the randomized data set, 25 PCs are suggested to be optimal. This accounts for `r round(Pkpcavaracc[25], 2)`% of the total variance. However, the first two components account for `r round(Pkpcavaracc[2], 2)`% and first four have `r round(Pkpcavaracc[4], 2)`%. So, if it isn't important to account for almost all the variance, the dimension could be reduced much further. Once again, the plot of the Eigen values can be seen in Figure \ref{fig:eigenfig2} and a plot of the first PC in Figure \ref{fig:PrecipPC1s}. 
 
-\ \ \ \ \ \ \ \ 
 Using the first four PCs from the KPCA the optimal number of clusters was assessed again. Seven indices suggest 12 clusters are appropriate and five indices suggest two or three clusters are appropriate. For the most part, the twelve clusters do break up the U.S. into specific regions. However, there are a few smaller areas that are split apart from the main cluster. For example, a portion of the Carolinas, Virginia, and Maryland area are clustered with the west and southwest region (Figure \ref{fig:PrecipClusters}).
-
 
 ```{r eigenfigs2, echo=FALSE, results='asis', fig.cap = '\\label{fig:eigenfig2} Plot of singular values and Eigen values for real and randomized precipitation data set for PCA and KPCA respectively. The PCs of the start performing worse than random after component 33 for the PCA and 32 for KPCA.', fig.align = 'center', out.width='90%'}
 ## Suggests 26 PCs (97% Var)
@@ -395,7 +377,6 @@ eigenplot <- ggplot(Pkpcaeig[c(1:400, 843:1243),], aes(x = Component, y = EigenV
 
 ggarrange(singvalplot, eigenplot, ncol = 1, nrow = 2)
 ```
-
 
 ```{r PrecipPC1, echo=FALSE, results='asis', fig.cap = '\\label{fig:PrecipPC1s} Plot of PC1 from PCA and KPCA for precipitation data.', fig.align = 'center'}
 bmap = map_data("state")
@@ -453,13 +434,10 @@ PLEclustout <- data.frame(LongLat2, Cluster = factor(PLEclustres$cluster))
 colnames(PLEclustout) <- c('Longitude', 'Latitude', 'Cluster')
 ```
 
-\ \ \ \ \ \ \ \ 
-Finally, LLE and LE is also used for the dimension reduction of the precipitation data. The LLE has two intrinsic dimensions and uses 25 nearest neighbor observations. Clustering indices suggest that three is the optimum number of clusters with two clusters being next best. These have seven and six indices suggesting them respectively. Looking at Figure \ref{fig:PrecipClusters}, the clusters seem to be scattered all over the place. This could make explanation difficult for future models.
+Finally, LLE and LE is also used for the dimension reduction of the precipitation data. The LLE has two intrinsic dimensions and uses 25 nearest neighbor observations. Clustering indices suggest that three is the optimum number of clusters with two clusters being next best. These have seven and six indices suggesting them respectively. Looking at Figure \ref{fig:PrecipClusters}, the clusters are scattered all over the place. This could make explanation difficult for future models.
 
-\ \ \ \ \ \ \ \ 
-Clustering indices for the LE suggest that the optimal number of clusters here is also three with an overwhelming majority. The clusters here are much more obvious though and somewhat similar to those of the PCA. It divides the United States into three regions with one being the west coast, one the central US, and the final being states east of the Mississippi river (Figure \ref{fig:PrecipClusters}). Figure \ref{fig:PrecipClustbypc} shows all of the clusters plotted with the first two dimensions of each of the reduction methods.
+Clustering indices for the LE suggest that the optimal number of clusters here is also three with an overwhelming majority. The clusters here are much more obvious though and somewhat similar to those of the PCA. It divides the United States into three regions with one being the west coast, one the central US, and the final one being states east of the Mississippi river (Figure \ref{fig:PrecipClusters}). Figure \ref{fig:PrecipClustbypc} shows all of the clusters plotted with the first two dimensions of each of the reduction methods.
 
-\ \ \ \ \ \ \ \ \ 
 For the following analyses, we use the KPCA results for each of the data sets. The SST data makes use of the five cluster solution and the precipitation uses the 12 cluster solution. 
 
 ```{r clusterplot2, echo = FALSE, results='asis', fig.cap = '\\label{fig:PrecipClusters} Best clustering solutions for each of the dimension reduction methods for Precipitation data.', fig.align = 'center', fig.height=9}
@@ -561,4 +539,8 @@ PrecipLEmanifolds <- ggplot(data = data.frame(PLEout, PLEclustout), aes(x = PLEo
                            legend.text = element_text(size=6)) 
 
 ggarrange(PrecipSVDPCplot, PrecipKPCAPCplot, PrecipLLEdimplot, PrecipLEmanifolds, ncol = 2, nrow = 2)
+```
+
+```{r cleanup2, include = FALSE}
+remove(PrecipSVD, rand2decomp, Pkpca2, Pkpcarand2, Plleres, PLE, MonthlyPrecip, rand2)
 ```

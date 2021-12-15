@@ -10,6 +10,10 @@ header-includes:
   - \usepackage{indentfirst}
 ---
 
+\newcommand{\pkg}[1]{{\normalfont\fontseries{b}\selectfont #1}}
+\let\proglang=\textsf
+\let\code=\texttt
+
 \newpage
 
 
@@ -49,7 +53,21 @@ library(tfdatasets)
 library(keras)
 library(reshape2)
 
-load("precip_region_cont_df_wide.Rdata")
+library(kernlab)
+library(NMF)
+library(lle)
+library(dimRed)
+library(loe)
+library(RSpectra)
+
+load("precip_region_cont_df_wide.RData")
+
+```
+
+```{r data, echo=FALSE}
+## import data
+# To load the RData
+load("data_in_dfs.RData")
 
 ```
 
@@ -59,15 +77,516 @@ Meteorologists study long and hard to predict weather patterns, day in and day o
 # Exploratory Data Analysis
 The data available includes  monthly SST anomalies on a grid for the period January 1948 through February 2018. These "anomalies" consist of differences of the temperature from a long-term average. Additionally, the data includes precipitation data for a majority of the North American continent.
 
-# Methods Considered
+# Dimension Reduction and Clustering
 
-```{r data, echo=FALSE}
-## import data
-# To load the RData
-load("data_in_dfs.RData")
+In order to decrease dimensionality of the data set, we conduct a series of dimension reduction techniques and then use these results to create location based clusters. For dimension reduction of both the SST and precipitation data, we consider principal components analysis using the singular value decomposition (SVD), kernel PCA (KPCA), local linear embedding (LLE), and Laplacian Eigenmaps (LE). The number of principal components for the two PCAs are selected by assessing cumulative variance accounted for, comparing to randomized data, dimensional minimization, and impact on clustering clarity. Other factors such as kernel smoothing method for the KPCA and number of neighbors for LLE are also optimized. 
 
+Determination of the number of regional k-means clusters for each of the four dimensional reduction methods above is done with k-means clustering and aided with the \pkg{NbClust} package. This package uses 30 different indices to suggest an appropriate number of clusters and varies all combinations of number of clusters, distance measures, and clustering methods. The final number of clusters is decided using a 'majority rule' approach and looking at cluster clarity and complexity. Basically, the number of clusters with the most indices in agreement were considered and then of those the one with the most visually clear clusters when plotted were chosen. 
+
+Results from each of the dimensional reduction methods and clustering are presented below for the SST and precipitation data sets. 
+
+## SST Results
+
+```{r SSTSVDsetup, include=FALSE, cache=TRUE}
+SST_df <- na.omit(SST_df)
+SST_df <- apply(SST_df, 2, as.numeric)
+LongLat <- SST_df[, 1:2]
+MonthlySST <- SST_df[ , -c(1,2)]
+
+## For ggplots
+form <- theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+              panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+## Start with SVD to get an idea of Prin Comp needed
+SSTSVD <- svd(MonthlySST)
+SSTsingvals <- matrix(NA, nrow = 842, ncol = 2)
+SSTsingvals[, 1] <- 1:842
+SSTsingvals[, 2] <- SSTSVD$d
+SVDvaracc <- cumsum(SSTSVD$d[1:33]^2)/sum(SSTSVD$d^2)*100
+
+
+## Set up random data
+set.seed(938837)
+rand <- matrix(NA, 2512, 842)
+for (i in 1:842) {
+    rand[ , i] <- MonthlySST[sample(nrow(MonthlySST)), i]
+}
+
+randdecomp <- svd(rand)
+SSTsingvals <- data.frame(SSTsingvals, as.numeric(randdecomp$d))
+colnames(SSTsingvals) <- c('Component', 'Real Data Trace', 'Random Data Trace')
+
+## PC DF
+SSTUD <- SSTSVD$u %*% diag(SSTSVD$d)
+SSTUD <- data.frame(LongLat, SSTUD[ , -c(34:842)])
+colnames(SSTUD) <- c('Longitude', 'Latitude', paste0('PC', 1:33))
+
+## Cluster
+set.seed(662321)
+SVDclustres <- kmeans(SSTUD[, -c(1, 2)], 2, nstart = 20, iter.max = 15)
+SVDclustout <- data.frame(LongLat, Cluster = factor(SVDclustres$cluster))
+colnames(SVDclustout) <- c('Longitude', 'Latitude', 'Cluster')
 ```
 
+```{r loadothers, include=FALSE}
+if (file.exists('SSTdimreduce.RData')){
+    load('SSTdimreduce.RData')
+} else {
+    kpca2 <- kpca(MonthlySST, kernel = "vanilladot", kpar = list())
+    kpcarand <- kpca(rand, kernel = "vanilladot", kpar = list())
+    lleres <- lle(MonthlySST, m = 2, k = 16)
+    LE <- embed(MonthlySST, .method = 'LaplacianEigenmaps')
+    save(kpca2, kpcarand, lleres, LE, file = 'SSTdimreduce.RData')
+}
+```
+
+First, the SST data set is converted into principal components (PCs) using SVD. The number of important components is assessed by looking at the number of components with singular values above those that are generated from a randomized version of the data set. Singular values for each component for the true and random data set can be seen in Figure \ref{fig:eigenfig}. This suggests using 33 PCs which accounts for a total variance of `r round(SVDvaracc[33], 2)`%with the first component accounting for `r round(SVDvaracc[1], 2)`%. Figure \ref{fig:SSTPC1s} plots the weights associated with the first PC on the latitude and longitude values. 
+
+Of the indices for determining the number of clusters from the suggested 33 PCs, eight suggest two clusters, seven suggest three clusters, and seven suggest 20 clusters. Inspection of the clusters when plotted with latitude and longitude show a close similarity between having 2 and 3 clusters. The two cluster solution can be seen in Figure \ref{fig:SSTClusters} The addition of another cluster just adds another area around the central cluster in the two cluster solution. Using 20 clusters seems a little excessive in this case and lead to some very small areas that belonged to one cluster but were not near the main cluster. One point of note is that this clustering closely resembles the distribution of the first PC.
+
+```{r SSTKPCA, include = FALSE}
+#kpca2 <- kpca(MonthlySST, kernel = "vanilladot", kpar = list()) 
+SSTkpcavar <- cumsum(kpca2@eig[1:32]^2)/sum(kpca2@eig^2)*100
+#kpcarand <- kpca(rand, kernel = "vanilladot", kpar = list())
+kpcaeig <- data.frame(Component = 1:162, Real = kpca2@eig, Random = kpcarand@eig[1:162])
+colnames(kpcaeig) <- c('Component', 'Real Data Trace', 'Random Data Trace')
+kpcaeig<- melt(kpcaeig, id.vars = 'Component', 
+                    variable.name = 'Data', value.name = 'EigenVal')
+
+
+KPCApcs <- kpca2@pcv[ , 1:6]
+KPCApcs <- data.frame(LongLat, KPCApcs)
+colnames(KPCApcs) <- c('Longitude', 'Latitude', paste0('PC', 1:6))
+
+set.seed(662321)
+## Suggests 5
+KPCAclustres <- kmeans(KPCApcs[, -c(1,2)], 5, nstart = 20, iter.max = 15) 
+KPCAclustout <- data.frame(LongLat, Cluster = factor(KPCAclustres$cluster))
+colnames(KPCAclustout) <- c('Longitude', 'Latitude', 'Cluster')
+```
+
+A similar procedure was followed for the KPCA except multiple kernels were also assessed. Of these, the linear kernel function seems to perform the most efficiently. It takes fewer PCs and less tuning to account for a similar amount of variance as the other kernels do. Similarly, when comparing to random data, 32 components are suggested this time (Figure \ref{fig:eigenfig}). However, if we use the SVD as a base line, it is possible that only 6 components are needed because they account for `r round(SSTkpcavar[6], 2)`% of the variance. Figure \ref{fig:SSTPC1s} presents a plot of the first PC for the KPCA. 
+
+Using these six components for clustering, seven indices suggest five as the best number of clusters, four suggest two clusters, and 3 suggest 6 or 20 clusters. So, five clusters seems to have the most support. The cluster structure here seems to break up the northern and eastern most sections of the pacific more with a bit of an alternating pattern, leaving a single cluster for the southwest area. The clustering can be seen in Figure \ref{fig:SSTClusters}.
+
+```{r eigenfigs, echo=FALSE, results='asis', fig.cap = '\\label{fig:eigenfig} Plot of singular values and Eigen values for real and randomized SST data set for PCA and KPCA respectively. The PCs of the start performing worse than random after component 33 for the PCA and 32 for KPCA.', fig.align = 'center', out.width='90%'}
+## Suggests 33 PCs (97% Var)
+SSTsingvals <- melt(SSTsingvals, id.vars = 'Component', 
+                    variable.name = 'Data', value.name = 'SingVal')
+
+singvalplot <- ggplot(SSTsingvals, aes(x = Component, y = SingVal, color = Data)) + 
+               geom_line() + form + xlab('Principal Component') + ylab('Singular Value') + labs(fill = 'Data Set') + 
+               theme(legend.position = c(.8, .8)) + ggtitle('PCA Singular Values')
+    
+
+    
+## If legend needs resizing
+# theme(legend.position = c(.8, .8), legend.key.size = unit(1, 'cm'),
+#                                          legend.key.height = unit(1, 'cm'), 
+#                                          legend.key.width = unit(1, 'cm'), 
+#                                          legend.title = element_text(size=14), 
+#                                          legend.text = element_text(size=12)) 
+
+## Suggests 33 PCs (97% Var)
+eigenplot <- ggplot(kpcaeig, aes(x = Component, y = EigenVal, color = Data)) + 
+             geom_line() + form + xlab('Principal Component') + ylab('Eigen Value') + labs(fill = 'Data Set') + 
+             theme(legend.position = c(.8, .8)) + ggtitle('KPCA Eigen Values')
+
+ggarrange(singvalplot, eigenplot, ncol = 1, nrow = 2)
+```
+
+```{r SSTPC1, echo=FALSE, results='asis', fig.cap = '\\label{fig:SSTPC1s} Plot of PC1 from PCA and KPCA for SST data.', fig.align = 'center'}
+## Plot PC 1
+SSTSVDPC1 <- ggplot(SSTUD, aes(x = Longitude, y = Latitude, fill = PC1)) + 
+             coord_fixed(ratio = 1) + geom_raster(alpha = 1) + form + 
+             scale_fill_gradientn(na.value = "white", colours = c("yellow", "orange", "green", "blue")) +
+             ggtitle('PCA PC1')
+
+## Plot PC 1
+SSTkpcaPC1 <- ggplot(KPCApcs, aes(x = Longitude, y = Latitude, fill = PC1)) + 
+              coord_fixed(ratio = 1) + geom_raster(alpha = 1) + form + 
+              scale_fill_gradientn(na.value = "white", colours = c("yellow", "orange", "green", "blue")) +
+              ggtitle('KPCA PC1')
+
+ggarrange(SSTSVDPC1, SSTkpcaPC1, ncol = 1, nrow = 2)
+```
+
+```{r SSTLLE, include=FALSE}
+# lleres <- lle(MonthlySST, m = 2, k = 16)
+# LE <- embed(MonthlySST, .method = 'LaplacianEigenmaps')
+
+Ymat <- data.frame(lleres$Y)
+LEout <- data.frame(Obs = 1:2512, LE@data@data)
+
+set.seed(662321)
+LLEclustres <- kmeans(Ymat, 10, nstart = 20, iter.max = 15)
+LLEclustout <- data.frame(LongLat, Cluster = factor(LLEclustres$cluster))
+colnames(LLEclustout) <- c('Longitude', 'Latitude', 'Cluster')
+
+set.seed(662321)
+LEclustres <- kmeans(LEout[, -1], 3, nstart = 20, iter.max = 15) ## suggests 2 or 3 clusters
+LEclustout <- factor(LEclustres$cluster)
+LEclustout <- data.frame(LongLat, Cluster = factor(LEclustres$cluster))
+colnames(LEclustout) <- c('Longitude', 'Latitude', 'Cluster')
+```
+
+Dimensional reduction was also attempted using LLE and Laplacian Eigenmaps. For LLE, the optimum number of neighbors found for two intrinsic dimensions is 16. The proposed number of clusters by the indices is 10. This was suggest by six indices, followed closely by three clusters with five indices and two clusters with four indices. This is by far the most chaotic clustering seen in Figure \ref{fig:SSTClusters}. Many of the clusters are surround by other clusters.
+
+The Laplacian Eigenmap also reduced dimensionality down to two. Clustering indices suggest that the optimal number of clusters is three with six indices. Two and four clusters could also be considered with 4 indices proposing each of those. Using three clusters, the Pacific is split into a single cluster to the west and two clusters in the east being split almost at the equator (Figure \ref{fig:SSTClusters}). 
+
+```{r clusterplot1, echo = FALSE, results='asis', fig.cap = '\\label{fig:SSTClusters} Best clustering solutions for each of the dimension reduction methods for SST data.', fig.align = 'center', fig.height=9}
+## SVD plot
+SSTSVDClust <- ggplot(SVDclustout, aes(x = Longitude, y = Latitude,  fill = Cluster)) + 
+               coord_fixed(ratio = 1) + geom_raster(alpha = 1) + form + ggtitle('Clustering from PCA') +
+                theme(legend.key.size = unit(.5, 'cm'),
+                     legend.key.height = unit(.5, 'cm'),
+                     legend.key.width = unit(.5, 'cm'),
+                     legend.title = element_text(size=10),
+                     legend.text = element_text(size=8)) 
+
+## KPCA plot
+SSTKPCAClust <- ggplot(KPCAclustout, aes(x = Longitude, y = Latitude,  fill = Cluster)) +
+                coord_fixed(ratio = 1) + geom_raster(alpha = 1) + form + ggtitle('Clustering from KPCA') +
+                theme(legend.key.size = unit(.5, 'cm'),
+                     legend.key.height = unit(.5, 'cm'),
+                     legend.key.width = unit(.5, 'cm'),
+                     legend.title = element_text(size=10),
+                     legend.text = element_text(size=8)) 
+
+## LLE plot
+SSTLLEClust <- ggplot(LLEclustout, aes(x = Longitude, y = Latitude,  fill = Cluster)) + 
+               coord_fixed(ratio = 1) + geom_raster(alpha = 1) + form + ggtitle('Clustering from LLE') +
+               theme(legend.key.size = unit(.5, 'cm'),
+                     legend.key.height = unit(.5, 'cm'),
+                     legend.key.width = unit(.5, 'cm'),
+                     legend.title = element_text(size=10),
+                     legend.text = element_text(size=8)) + guides(fill=guide_legend(ncol=2))
+
+## LE plot
+SSTLEClust <- ggplot(LEclustout, aes(x = Longitude, y = Latitude,  fill = Cluster)) + 
+              coord_fixed(ratio = 1) + geom_raster(alpha = 1) + form + ggtitle('Clustering from LE') +
+              theme(legend.key.size = unit(.5, 'cm'),
+                     legend.key.height = unit(.5, 'cm'),
+                     legend.key.width = unit(.5, 'cm'),
+                     legend.title = element_text(size=10),
+                     legend.text = element_text(size=8)) 
+
+ggarrange(SSTSVDClust, SSTKPCAClust, SSTLLEClust, SSTLEClust, ncol = 1, nrow = 4)
+```
+
+```{r clustbypc, echo = FALSE, results='asis', fig.cap = '\\label{fig:SSTClustbypc} Location clusters plotted by the first two PCs or manifolds of each dimension reduction techinque.', fig.align = 'center'}
+SSTSVDPCplot <- ggplot(data = data.frame(SSTUD, SVDclustout), aes(x = PC1, y = PC2, color = Cluster)) + 
+                geom_point(size = .3) + form + xlab('Principal Component 1') + 
+                ylab('Principal Component 2') + ggtitle('PCA Clusters') +
+                theme(legend.key.size = unit(.25, 'cm'),
+                     legend.key.height = unit(.25, 'cm'),
+                     legend.key.width = unit(.25, 'cm'),
+                     legend.title = element_text(size=8),
+                     legend.text = element_text(size=6)) 
+
+SSTKPCAPCplot <- ggplot(data = data.frame(KPCApcs, KPCAclustout), 
+                        aes(x = PC1, y = PC2, color = Cluster)) + 
+                 geom_point(size = .3) + form + xlab('Principal Component 1') + 
+                 ylab('Principal Component 2') + ggtitle('KPCA Clusters') +
+                 theme(legend.key.size = unit(.25, 'cm'),
+                     legend.key.height = unit(.25, 'cm'),
+                     legend.key.width = unit(.25, 'cm'),
+                     legend.title = element_text(size=8),
+                     legend.text = element_text(size=6)) 
+
+SSTLLEdimplot <- ggplot(data = data.frame(Ymat, LLEclustout), aes(x = Ymat[, 1], y = Ymat[, 2], color = Cluster)) +
+                 geom_point(size = .3) + form + xlab('Dimension 1') + 
+                 ylab('Dimension 2') + ggtitle('LLE Clusters') +
+                 theme(legend.key.size = unit(.25, 'cm'),
+                     legend.key.height = unit(.25, 'cm'),
+                     legend.key.width = unit(.25, 'cm'),
+                     legend.title = element_text(size=8),
+                     legend.text = element_text(size=6)) + guides(fill=guide_legend(ncol=2))
+
+SSTLEmanifolds <- ggplot(data = data.frame(LEout, LEclustout), aes(x = LEout[, 1], y = LEout[, 2], color = Cluster)) +
+                  geom_point(size = .3) + form + xlab('Manifold 1') + 
+                  ylab('Manifold 2') + ggtitle('LE Clusters') +
+                  theme(legend.key.size = unit(.25, 'cm'),
+                     legend.key.height = unit(.25, 'cm'),
+                     legend.key.width = unit(.25, 'cm'),
+                     legend.title = element_text(size=8),
+                     legend.text = element_text(size=6)) 
+
+ggarrange(SSTSVDPCplot, SSTKPCAPCplot, SSTLLEdimplot, SSTLEmanifolds, ncol = 2, nrow = 2)
+```
+
+```{r cleanup, include=FALSE}
+remove(kpca2, kpcarand, lleres, LE, SSTSVD, randdecomp, MonthlySST, rand)
+```
+
+## Precipitation Results
+
+```{r precipsetup, include=FALSE}
+Pdat_df <- na.omit(Pdat_df)
+Pdat_df <- apply(Pdat_df, 2, as.numeric)
+LongLat2 <- Pdat_df[, 1:2]
+MonthlyPrecip <- Pdat_df[ , -c(1,2)]
+
+## Start with SVD to get an idea of Prin Comp needed
+PrecipSVD <- svd(MonthlyPrecip)
+Precipsingvals <- matrix(NA, nrow = 842, ncol = 2)
+Precipsingvals[, 1] <- 1:842
+Precipsingvals[, 2] <- PrecipSVD$d
+PrecipSVDvaracc <- cumsum(PrecipSVD$d[1:26]^2)/sum(PrecipSVD$d^2)*100
+
+## Set up random data
+set.seed(374378)
+rand2 <- matrix(NA, 5390, 842)
+for (i in 1:842) {
+    rand2[ , i] <- MonthlyPrecip[sample(nrow(MonthlyPrecip)), i]
+}
+
+rand2decomp <- svd(rand2)
+Precipsingvals <- data.frame(Precipsingvals, as.numeric(rand2decomp$d))
+colnames(Precipsingvals) <- c('Component', 'Real Data Trace', 'Random Data Trace')
+
+
+## set up PCs
+PrecipUD <- PrecipSVD$u %*% diag(PrecipSVD$d)
+PrecipUD <- data.frame(LongLat2, PrecipUD[ , -c(27:842)])
+colnames(PrecipUD) <- c('Longitude', 'Latitude', paste0('PC', 1:26))
+
+## Cluster
+set.seed(629787)
+PSVDclustres <- kmeans(PrecipUD[, -c(1, 2)], 4, nstart = 20, iter.max = 20) ## 2 or 4 suggested as best
+PSVDclustout <- data.frame(LongLat2, Cluster = factor(PSVDclustres$cluster))
+colnames(PSVDclustout) <- c('Longitude', 'Latitude', 'Cluster')
+```
+
+```{r loadothers2, include=FALSE}
+if (file.exists('Precipdimreduce.RData')){
+    load('Precipdimreduce.RData')
+} else {
+    Pkpca2 <- kpca(MonthlySST, kernel = "vanilladot", kpar = list())
+    Pkpcarand <- kpca(rand, kernel = "vanilladot", kpar = list())
+    Plleres <- lle(MonthlySST, m = 2, k = 16)
+    PLE <- embed(MonthlySST, .method = 'LaplacianEigenmaps')
+    save(Pkpca2, Pkpcarand2, Plleres, PLE, file = 'Precipdimreduce.RData')
+}
+```
+
+The procedures for dimensional reduction for the precipitation data are similar to those above. Likewise, the number of important components is assessed by comparing the singular values of each PC from the real data to those that come from a randomized version of the data set. This suggests that 26 PCs should be considered. The PCs account for a total of `r round(PrecipSVDvaracc[26], 2)`% of the variance. The first PC accounts for `r round(PrecipSVDvaracc[1], 2)`%. Figure \ref{fig:eigenfig2} shows the comparison of the singular values and Figure \ref{fig:PrecipPC1s} shows a plot of the first PC. 
+
+The important PCs were once again used to create regional clusters for the precipitation data. Eight clustering indices suggest two as the best number of clusters, seven propose 4 clusters, and five propose 15. When using two clusters, the United States is split into a group containing the Pacific north west and states near the Mississippi river and eastward and a group containing the rest of the west. A four cluster solution more closely resembles the first principal component. Similar to the SST data set. This is seen in Figure \ref{fig:PrecipClusters}. 
+
+```{r precipkpca, include=FALSE}
+#Pkpca2 <- kpca(MonthlyPrecip, kernel = "vanilladot", kpar = list()) ##maybe 2-4 PCs? Better than Random suggests 25.
+Pkpcavaracc <- cumsum(Pkpca2@eig[1:26]^2)/sum(Pkpca2@eig^2)*100
+#Pkpcarand2 <- kpca(rand2, kernel = "vanilladot", kpar = list())
+Pkpcaeig <- data.frame(Component = 1:842, Real = Pkpca2@eig, Random = Pkpcarand2@eig)
+colnames(Pkpcaeig) <- c('Component', 'Real Data Trace', 'Random Data Trace')
+Pkpcaeig<- melt(Pkpcaeig, id.vars = 'Component', 
+                    variable.name = 'Data', value.name = 'EigenVal')
+
+PKPCApcs <- Pkpca2@pcv[ , 1:4]
+
+## Cluster
+## 12 Suggested
+set.seed(662321)
+PKPCAclustres <- kmeans(PKPCApcs, 12, nstart = 20, iter.max = 15)
+PKPCAclustout <- data.frame(LongLat2, Cluster = factor(PKPCAclustres$cluster))
+colnames(PKPCAclustout) <- c('Longitude', 'Latitude', 'Cluster')
+
+PKPCApcs <- data.frame(LongLat2, PKPCApcs)
+colnames(PKPCApcs) <- c('Longitude', 'Latitude', paste0('PC', 1:4))
+```
+
+The KPCA model that provided the largest dimensional reduction without having to tune applies a linear kernel. When compared to the randomized data set, 25 PCs are suggested to be optimal. This accounts for `r round(Pkpcavaracc[25], 2)`% of the total variance. However, the first two components account for `r round(Pkpcavaracc[2], 2)`% and first four have `r round(Pkpcavaracc[4], 2)`%. So, if it isn't important to account for almost all the variance, the dimension could be reduced much further. Once again, the plot of the Eigen values can be seen in Figure \ref{fig:eigenfig2} and a plot of the first PC in Figure \ref{fig:PrecipPC1s}. 
+
+Using the first four PCs from the KPCA the optimal number of clusters was assessed again. Seven indices suggest 12 clusters are appropriate and five indices suggest two or three clusters are appropriate. For the most part, the twelve clusters do break up the U.S. into specific regions. However, there are a few smaller areas that are split apart from the main cluster. For example, a portion of the Carolinas, Virginia, and Maryland area are clustered with the west and southwest region (Figure \ref{fig:PrecipClusters}).
+
+```{r eigenfigs2, echo=FALSE, results='asis', fig.cap = '\\label{fig:eigenfig2} Plot of singular values and Eigen values for real and randomized precipitation data set for PCA and KPCA respectively. The PCs of the start performing worse than random after component 33 for the PCA and 32 for KPCA.', fig.align = 'center', out.width='90%'}
+## Suggests 26 PCs (97% Var)
+Precipsingvals <- melt(Precipsingvals, id.vars = 'Component', 
+                    variable.name = 'Data', value.name = 'SingVal')
+
+singvalplot <- ggplot(Precipsingvals[c(1:400, 843:1243),], aes(x = Component, y = SingVal, color = Data)) + 
+               geom_line() + form + xlab('Principal Component') + ylab('Singular Value') + labs(fill = 'Data Set') + 
+               theme(legend.position = c(.8, .8)) + ggtitle('PCA Singular Values')
+    
+
+
+## Suggests 25 PCs (97% Var)
+eigenplot <- ggplot(Pkpcaeig[c(1:400, 843:1243),], aes(x = Component, y = EigenVal, color = Data)) + 
+             geom_line() + form + xlab('Principal Component') + ylab('Eigen Value') + labs(fill = 'Data Set') + 
+             theme(legend.position = c(.8, .8)) + ggtitle('KPCA Eigen Values')
+
+ggarrange(singvalplot, eigenplot, ncol = 1, nrow = 2)
+```
+
+```{r PrecipPC1, echo=FALSE, results='asis', fig.cap = '\\label{fig:PrecipPC1s} Plot of PC1 from PCA and KPCA for precipitation data.', fig.align = 'center'}
+bmap = map_data("state")
+colnames(bmap)[1:2] <- c('Longitude', 'Latitude')
+
+## Plot PC 1
+PrecipSVDPC1 <- ggplot(PrecipUD, aes(x = Longitude, y = Latitude, fill = PC1)) + 
+                coord_fixed(ratio = 1) + 
+                geom_raster(alpha = 1) + 
+                geom_polygon(data = bmap,
+                             aes(x = Longitude, y = Latitude, group = group),
+                             inherit.aes = F, colour = 'black', 
+                             fill = NA, lwd = 0.5) + 
+                form + scale_fill_gradientn(na.value = "white", 
+                                            colours = c("yellow", "orange", "green", "blue")) +
+                ggtitle('PCA PC1')
+
+## Plot PC 1
+PrecipkpcaPC1 <- ggplot(PKPCApcs, aes(x = Longitude, y = Latitude, fill = PC1)) + 
+                 coord_fixed(ratio = 1) + 
+                 geom_raster(alpha = 1) +
+                 geom_polygon(data = bmap,
+                              aes(x = Longitude, y = Latitude, group = group),
+                              inherit.aes = F, colour = 'black', 
+                              fill = NA, lwd = 0.5) +
+                 form + 
+                 scale_fill_gradientn(na.value = "white", 
+                                      colours = c("yellow", "orange", "green", "blue")) +
+                 ggtitle('KPCA PC1')
+
+ggarrange(PrecipSVDPC1, PrecipkpcaPC1, ncol = 1, nrow = 2)
+```
+
+```{r precipLLE, include=FALSE}
+## Opt K = 25 for 2
+#Plleres <- lle(MonthlyPrecip, m = 2, k = 25)
+PYmat <- data.frame(Plleres$Y)
+
+## Cluster
+set.seed(662321)
+PLLEclustres <- kmeans(PYmat, 3, nstart = 20, iter.max = 25) #3 suggested, 2 next
+PLLEclustout <- data.frame(LongLat2, Cluster = factor(PLLEclustres$cluster))
+colnames(PLLEclustout) <- c('Longitude', 'Latitude', 'Cluster')
+```
+
+```{r precipLE, include=FALSE}
+#PLE <- embed(MonthlyPrecip, .method = 'LaplacianEigenmaps')
+PLEout <- data.frame(Obs = 1:5390, PLE@data@data)
+
+
+## Cluster
+set.seed(662321)
+PLEclustres <- kmeans(PLEout[, -1], 3, nstart = 20, iter.max = 20) ## suggests 2 or 3 clusters
+PLEclustout <- data.frame(LongLat2, Cluster = factor(PLEclustres$cluster))
+colnames(PLEclustout) <- c('Longitude', 'Latitude', 'Cluster')
+```
+
+Finally, LLE and LE is also used for the dimension reduction of the precipitation data. The LLE has two intrinsic dimensions and uses 25 nearest neighbor observations. Clustering indices suggest that three is the optimum number of clusters with two clusters being next best. These have seven and six indices suggesting them respectively. Looking at Figure \ref{fig:PrecipClusters}, the clusters are scattered all over the place. This could make explanation difficult for future models.
+
+Clustering indices for the LE suggest that the optimal number of clusters here is also three with an overwhelming majority. The clusters here are much more obvious though and somewhat similar to those of the PCA. It divides the United States into three regions with one being the west coast, one the central US, and the final one being states east of the Mississippi river (Figure \ref{fig:PrecipClusters}). Figure \ref{fig:PrecipClustbypc} shows all of the clusters plotted with the first two dimensions of each of the reduction methods.
+
+For the following analyses, we use the KPCA results for each of the data sets. The SST data makes use of the five cluster solution and the precipitation uses the 12 cluster solution. 
+
+```{r clusterplot2, echo = FALSE, results='asis', fig.cap = '\\label{fig:PrecipClusters} Best clustering solutions for each of the dimension reduction methods for Precipitation data.', fig.align = 'center', fig.height=9}
+## SVD plot
+PrecipSVDClust <- ggplot(PSVDclustout, aes(x = Longitude, y = Latitude,  fill = Cluster)) + 
+                  coord_fixed(ratio = 1) + geom_raster(alpha = 1) +
+                  geom_polygon(data = bmap,
+                             aes(x = Longitude, y = Latitude, group = group),
+                             inherit.aes = F, colour = 'black', 
+                             fill = NA, lwd = 0.5) +
+                  form + ggtitle('Clustering from PCA') +
+                  theme(legend.key.size = unit(.5, 'cm'),
+                        legend.key.height = unit(.5, 'cm'),
+                        legend.key.width = unit(.5, 'cm'),
+                        legend.title = element_text(size=10),
+                        legend.text = element_text(size=8)) 
+
+## KPCA plot
+PrecipKPCAClust <- ggplot(PKPCAclustout, aes(x = Longitude, y = Latitude,  fill = Cluster)) +
+                   coord_fixed(ratio = 1) + geom_raster(alpha = 1) + 
+                   geom_polygon(data = bmap,
+                             aes(x = Longitude, y = Latitude, group = group),
+                             inherit.aes = F, colour = 'black', 
+                             fill = NA, lwd = 0.5) +
+                   form + ggtitle('Clustering from KPCA') +
+                   theme(legend.key.size = unit(.5, 'cm'),
+                         legend.key.height = unit(.5, 'cm'),
+                         legend.key.width = unit(.5, 'cm'),
+                         legend.title = element_text(size=10),
+                         legend.text = element_text(size=8)) + guides(fill=guide_legend(ncol=2))
+
+## LLE plot
+PrecipLLEClust <- ggplot(PLLEclustout, aes(x = Longitude, y = Latitude,  fill = Cluster)) + 
+                  coord_fixed(ratio = 1) + geom_raster(alpha = 1) + 
+                  geom_polygon(data = bmap,
+                             aes(x = Longitude, y = Latitude, group = group),
+                             inherit.aes = F, colour = 'black', 
+                             fill = NA, lwd = 0.5) +
+                  form + ggtitle('Clustering from LLE') +
+                  theme(legend.key.size = unit(.5, 'cm'),
+                        legend.key.height = unit(.5, 'cm'),
+                        legend.key.width = unit(.5, 'cm'),
+                        legend.title = element_text(size=10),
+                        legend.text = element_text(size=8))
+
+## LE plot
+PrecipLEClust <- ggplot(PLEclustout, aes(x = Longitude, y = Latitude,  fill = Cluster)) + 
+                 coord_fixed(ratio = 1) + geom_raster(alpha = 1) + 
+                 geom_polygon(data = bmap,
+                             aes(x = Longitude, y = Latitude, group = group),
+                             inherit.aes = F, colour = 'black', 
+                             fill = NA, lwd = 0.5) +
+                 form + ggtitle('Clustering from LE') +
+                 theme(legend.key.size = unit(.5, 'cm'),
+                       legend.key.height = unit(.5, 'cm'),
+                       legend.key.width = unit(.5, 'cm'),
+                       legend.title = element_text(size=10),
+                       legend.text = element_text(size=8)) 
+
+ggarrange(PrecipSVDClust, PrecipKPCAClust, PrecipLLEClust, PrecipLEClust, ncol = 1, nrow = 4)
+```
+
+```{r clustbypc2, echo = FALSE, results='asis', fig.cap = '\\label{fig:PrecipClustbypc} Location clusters plotted by the first two PCs or manifolds of each dimension reduction techinque.', fig.align = 'center'}
+PrecipSVDPCplot <- ggplot(data = data.frame(PrecipUD, PSVDclustout), aes(x = PC1, y = PC2, color = Cluster)) + 
+                   geom_point(size = .3) + form + xlab('Principal Component 1') + 
+                   ylab('Principal Component 2') + ggtitle('PCA Clusters') +
+                   theme(legend.key.size = unit(.25, 'cm'),
+                         legend.key.height = unit(.25, 'cm'),
+                         legend.key.width = unit(.25, 'cm'),
+                         legend.title = element_text(size=8),
+                         legend.text = element_text(size=6)) 
+
+PrecipKPCAPCplot <- ggplot(data = data.frame(PKPCApcs, PKPCAclustout), 
+                        aes(x = PC1, y = PC2, color = Cluster)) + 
+                    geom_point(size = .3) + form + xlab('Principal Component 1') + 
+                    ylab('Principal Component 2') + ggtitle('KPCA Clusters') +
+                    theme(legend.key.size = unit(.25, 'cm'),
+                          legend.key.height = unit(.25, 'cm'),
+                          legend.key.width = unit(.25, 'cm'),
+                          legend.title = element_text(size=8),
+                          legend.text = element_text(size=6)) 
+
+PrecipLLEdimplot <- ggplot(data = data.frame(PYmat, PLLEclustout), aes(x =  PYmat[, 1], y = PYmat[, 2], color = Cluster)) +
+                    geom_point(size = .3) + form + xlab('Dimension 1') + 
+                    ylab('Dimension 2') + ggtitle('LLE Clusters') +
+                    theme(legend.key.size = unit(.25, 'cm'),
+                          legend.key.height = unit(.25, 'cm'),
+                          legend.key.width = unit(.25, 'cm'),
+                          legend.title = element_text(size=8),
+                          legend.text = element_text(size=6)) + guides(fill=guide_legend(ncol=2))
+
+PrecipLEmanifolds <- ggplot(data = data.frame(PLEout, PLEclustout), aes(x = PLEout[, 1], y = PLEout[, 2], color = Cluster)) +
+                     geom_point(size = .3) + form + xlab('Manifold 1') + 
+                     ylab('Manifold 2') + ggtitle('LE Clusters') +
+                     theme(legend.key.size = unit(.25, 'cm'),
+                           legend.key.height = unit(.25, 'cm'),
+                           legend.key.width = unit(.25, 'cm'),
+                           legend.title = element_text(size=8),
+                           legend.text = element_text(size=6)) 
+
+ggarrange(PrecipSVDPCplot, PrecipKPCAPCplot, PrecipLLEdimplot, PrecipLEmanifolds, ncol = 2, nrow = 2)
+```
+
+```{r cleanup2, include = FALSE}
+remove(PrecipSVD, rand2decomp, Pkpca2, Pkpcarand2, Plleres, PLE, MonthlyPrecip, rand2)
+```
+
+# Methods Considered
 
 
 
