@@ -5,6 +5,7 @@ author: "Katie Price, Emily Scully, Ben Graves, Ellen Fitzsimmons, and Mira Isna
 date: \today
 output: pdf_document
 indent: true
+urlcolor: blue
 header-includes:
   - \usepackage{pdfpages}
   - \usepackage{indentfirst}
@@ -14,6 +15,9 @@ header-includes:
 \newcommand{\pkg}[1]{{\normalfont\fontseries{b}\selectfont #1}}
 \let\proglang=\textsf
 \let\code=\texttt
+
+Code Housed in [GitHub Repository](https://github.com/blg192/Data3Project3) 
+
 
 \newpage
 
@@ -80,7 +84,7 @@ Meteorologists study long and hard to predict weather patterns, day in and day o
 
 The data available includes  monthly SST anomalies on a grid for the period January 1948 through February 2018. These "anomalies" consist of differences of the temperature from a long-term average. Additionally, the data includes precipitation data for a majority of the North American continent. Examples of each data source are plotted below for May 2017:
 
-```{r, echo = FALSE, out.width="60%", fig.align='center'}
+```{r, echo = FALSE, out.width="70%", fig.align='center'}
 
 state_map = map_data("state")
 bmap = map_data("state")
@@ -113,8 +117,10 @@ precipPlot = ggplot() +
     panel.grid.minor = element_blank(),
     panel.background = element_blank()
   ) + 
-  labs(fill = "Precipication \nUnits", 
-       title = "May 2017 Observed Precipitation")
+  labs(x = "Longitude",
+       y = "Latitude",
+       fill = "Precipication \nUnits", 
+       title = "May 2017 \nObserved Precipitation")
 
 
 SSTPlot = ggplot() +
@@ -135,8 +141,10 @@ SSTPlot = ggplot() +
     panel.grid.minor = element_blank(),
     panel.background = element_blank()
   ) + 
-  labs(fill = "Temperature \nUnits", 
-       title = "May 2017 Observed SST")
+  labs(x = "Longitude",
+       y = "Latitude",
+       fill = "Temperature \nUnits",
+       title = "May 2017 \nObserved SST")
 
 
 gridExtra::grid.arrange(precipPlot, SSTPlot)
@@ -210,7 +218,7 @@ if (file.exists('SSTdimreduce.RData')){
 
 First, the SST data set is converted into principal components (PCs) using SVD. The number of important components is assessed by looking at the number of components with singular values above those that are generated from a randomized version of the data set. Singular values for each component for the true and random data set can be seen in Figure \ref{fig:eigenfig}. This suggests using 33 PCs which accounts for a total variance of `r round(SVDvaracc[33], 2)`%with the first component accounting for `r round(SVDvaracc[1], 2)`%. Figure \ref{fig:SSTPC1s} plots the weights associated with the first PC on the latitude and longitude values. 
 
-Of the indices for determining the number of clusters from the suggested 33 PCs, eight suggest two clusters, seven suggest three clusters, and seven suggest 20 clusters. Inspection of the clusters when plotted with latitude and longitude show a close similarity between having 2 and 3 clusters. The two cluster solution can be seen in Figure \ref{fig:SSTClusters} The addition of another cluster just adds another area around the central cluster in the two cluster solution. Using 20 clusters seems a little excessive in this case and lead to some very small areas that belonged to one cluster but were not near the main cluster. One point of note is that this clustering closely resembles the distribution of the first PC.
+Of the indices for determining the number of clusters from the suggested 33 PCs, eight suggest two clusters, seven suggest three clusters, and seven suggest 20 clusters. Inspection of the clusters when plotted with latitude and longitude show a close similarity between having 2 and 3 clusters. The two cluster solution can be seen in Figure \ref{fig:SSTClusters}. The addition of another cluster just adds another area around the central cluster in the two cluster solution. Using 20 clusters seems a little excessive in this case and lead to some very small areas that belonged to one cluster but were not near the main cluster. One point of note is that this clustering closely resembles the distribution of the first PC.
 
 ```{r SSTKPCA, include = FALSE}
 #kpca2 <- kpca(MonthlySST, kernel = "vanilladot", kpar = list()) 
@@ -302,7 +310,7 @@ Dimensional reduction was also attempted using LLE and Laplacian Eigenmaps. For 
 
 The Laplacian Eigenmap also reduced dimensionality down to two. Clustering indices suggest that the optimal number of clusters is three with six indices. Two and four clusters could also be considered with 4 indices proposing each of those. Using three clusters, the Pacific is split into a single cluster to the west and two clusters in the east being split almost at the equator (Figure \ref{fig:SSTClusters}). 
 
-```{r clusterplot1, echo = FALSE, results='asis', fig.cap = '\\label{fig:SSTClusters} Best clustering solutions for each of the dimension reduction methods for SST data.', fig.align = 'center', fig.height=9, fig.pos="H"}
+```{r clusterplot1, echo = FALSE, results='asis', fig.cap = '\\label{fig:SSTClusters} Best clustering solutions for each of the dimension reduction methods for SST data.', fig.align = 'center', fig.height=8, fig.pos="H"}
 ## SVD plot
 SSTSVDClust <- ggplot(SVDclustout, aes(x = Longitude, y = Latitude,  fill = Cluster)) + 
                coord_fixed(ratio = 1) + geom_raster(alpha = 1) + ggform + ggtitle('Clustering from PCA') +
@@ -549,7 +557,7 @@ Clustering indices for the LE suggest that the optimal number of clusters here i
 
 For the following analyses, we use the KPCA results for each of the data sets. The SST data makes use of the five cluster solution and the precipitation uses the 12 cluster solution. 
 
-```{r clusterplot2, echo = FALSE, results='asis', fig.cap = '\\label{fig:PrecipClusters} Best clustering solutions for each of the dimension reduction methods for Precipitation data.', fig.align = 'center', fig.height=9, fig.pos="H"}
+```{r clusterplot2, echo = FALSE, results='asis', fig.cap = '\\label{fig:PrecipClusters} Best clustering solutions for each of the dimension reduction methods for Precipitation data.', fig.align = 'center', fig.height=7.5, fig.pos="H"}
 ## SVD plot
 PrecipSVDClust <- ggplot(PSVDclustout, aes(x = Longitude, y = Latitude,  fill = Cluster)) + 
                   coord_fixed(ratio = 1) + geom_raster(alpha = 1) +
@@ -656,6 +664,12 @@ remove(PrecipSVD, rand2decomp, Pkpca2, Pkpcarand2, Plleres, PLE, MonthlyPrecip, 
 
 # Methods Considered
 
+
+## Baseline: Climatology
+
+It is well known by experts in the field that one of the most simple models - the climatology model - performs relatively well given the ease of calculation and interpretation. The climatology model simply takes historical average for a given month and uses that as the prediction for that month in the future. Two climatology models were built with this data: one using the continuous precipitation values and one using the categorical precipitation values. The MSE of the model with the continuous values was 1.494, whereas the accuracy for the categorical values was 0.712. These values would need to be improved by other models described below to be considered as a replacement.
+
+
 ## Baseline: Persistence
 
 ```{r pers_mod, echo=FALSE, message=FALSE, eval=FALSE}
@@ -735,7 +749,7 @@ testmsepers <- testmse_pers
 
 The persistence model predicts that the precipitation for a location on a given date will be equal to the recorded precipitation at the same location $\tau$ months previously. For this baseline model, it seems that test MSE increases as $\tau$ approaches 6 month intervals away from the predicted date and decreases as $\tau$ approaches 12 month intervals away from the predicted date. These results make sense because this would mean that the error is highest when using weather data from the opposite time of year seasonally for prediction, and the error is lowest when using data from the same time of year seasonally for prediction. When $\tau = 6$ and all data are accounted for, the test mse was `r round(testmsepersall, 2)`. For the same value of $\tau$ when the data is limited to the testing set of data from 2017--2018 the test mse was `r round(testmsepers, 2)`. Although this MSE value is not as good as some of the others evident in the plot below, this is the value we'll be using for comparison because it matches the testing/training data set up and the $\tau$ values -- when applicable -- to our other models, so this is most suitable for comparison.
 
-```{r pers_mod_plot, echo=FALSE, cache=TRUE}
+```{r pers_mod_plot, echo=FALSE, cache=TRUE, out.width="70%", fig.align='center'}
 ## It seems MSE increases as tau approaches the 6 months mark and decreases 
 ## as it approaches the 12 month mark
 # n <- 24
@@ -758,9 +772,7 @@ ggplot(data=as.data.frame(msemat), aes(x=tau, y=mse, group=1)) +
 ```
 
 
-## Baseline: Climatology
 
-It is well known by experts in the field that one of the most simple models - the climatology model - performs relatively well given the ease of calculation and interpretation. The climatology model simply takes historical average for a given month and uses that as the prediction for that month in the future. Two climatology models were built with this data: one using the continuous precipitation values and one using the categorical precipitation values. The MSE of the model with the continuous values was 1.494, whereas the accuracy for the categorical values was 0.712. This values would need to be improved by other models described below to be considered as a replacement.
 
 ```{r clim_mod, cache=TRUE, include=FALSE}
 # can't set this to eval = FALSE because need MSE for table
@@ -1073,10 +1085,10 @@ testmse_lasso <- mean((all_precip_yyhat3$s1 - all_precip_yyhat3$Precipitation)^2
 ```
 
 
-The regularization method in this study will use the clustering for land and sea resulted from KPCA. From the KPCA, the most appropriate have five clusters for SST data and twelve clusters are appropriate for Precipitation data. We used the average precipitation data in given month_year as response and average SST for each sea cluster in given_month as predictors. We set the training set using all the data before 2017 (Jan1948 to Dec2016) and testing set using all data after 2017 (Jan2017 to Feb2018).
+The regularization method in this study will use the clustering for land and sea resulted from KPCA. From the KPCA, the most appropriate results suggest five clusters for SST data and twelve clusters are appropriate for Precipitation data. We used the average precipitation data in given month_year as response and average SST for each sea cluster in given_month as predictors. We set the training set using all the data before 2017 (Jan1948 to Dec2016) and testing set using all data after 2017 (Jan2017 to Feb2018).
 The Ridge regression produce the coefficient estimates that fit the data well by making the RSS small and has the effect of shrinking the estimates toward zero. The ten-fold cross validation is used to choose the tuning parameter $\lambda$. The value of $\lambda$ that results in the smallest cross validation error is 3.15. The test RMSE for Ridge Regression is 4.3320.
 
-The Lasso Regression has similar behavior to the ridge regression. The cross validation was used to find the best $\lambda$ 0.0116. The test MSE for the Lasso Regression is 4.3562. Both Ridge and Lasso regression produce not significantly different test MSE. Even though the test MSE for lasso regression is a bit higher than ridge regression, the lasso performs variable selection like best subset selection and it can be more interpretable than ridge regression. From the resulted test MSE, it seems that the use of ridge and lasso regression is not the most effective way to predict precipitation data. However, ridge regression and lasso regression can be more computationally feasible than subset selection method.
+The Lasso Regression has similar behavior to the ridge regression. Cross validation was used to find the best $\lambda$ at 0.0116. The test MSE for the Lasso Regression is 4.3562. Both Ridge and Lasso regression produce test MSEs which are not significantly different. Even though the test MSE for lasso regression is a bit higher than ridge regression, the lasso performs variable selection like best subset selection and it can be more interpretable than ridge regression. From the resulted test MSE, it seems that the use of ridge and lasso regression is not the most effective way to predict precipitation data. However, ridge regression and lasso regression can be more computationally feasible than subset selection method.
 
 
 
@@ -1087,7 +1099,10 @@ gam.1<- gam(Precipitation~s(SeaCluster1,2) +SeaCluster2 + SeaCluster3 + SeaClust
 
 ```
 
-The generalized linear approach proved to be less than ideal. The idea of approaching the data using GAM was the nonlinear relationships between the individual clusters and the precipitation data would be modeled while maintaining the additive nature of a linear model. Using the KPCA regions with continuous data as the response, we predicted the precipitation at a given time $\tau$ given the SST clustered data at the same time $\tau$. I began by running the GAM model without adjusting for nonlinearity for each SST cluster, to find that all of the variables were significant linearly, though barely so for SeaCluster3. Knowing this, I wanted to experiment with the nonlinearity between some of the clusters and the response, therefore I opted for smoothing splines on the first two SST clusters with degrees of freedom 2. SeaCluster1 and SeaCluster2 both proved to be significant at with 2 degrees of freedom. 
+The generalized linear approach proved to be less than ideal. The idea of approaching the data using GAM was the nonlinear relationships between the individual clusters and the precipitation data would be modeled while maintaining the additive nature of a linear model. Using the KPCA regions with continuous data as the response, we began by running the GAM model without adjusting for nonlinearity for each SST cluster, to find that all of the variables were significant linearly, though barely so for SeaCluster3. Knowing this, we wanted to experiment with the nonlinearity between some of the clusters and the response, therefore we opted for smoothing splines on the first two SST clusters with degrees of freedom 2. SeaCluster1 and SeaCluster2 both proved to be significant at with 2 degrees of freedom. 
+
+First we generate a model which predicted the precipitation at a given time $\tau$ given the SST clustered data at the same time $\tau$. The GAM model proved to predict precipitation levels using contemporary SST data with very low accuracy. Against the 2017/18 test data, the best GAM model produced an MSE of 8.5, with a smoothing spline on the first cluster. We then built a separate model using the same KPCA clusters at a given time $\tau$ given the SST clustered data 6 months prior, i.e. $\tau$+6 months. This lagged data gives us more of an idea on how sea surface temperature has effects over time, and while the model still performed poorly with an average MSE across clusters of 6.312, it did perform significantly better than the contemporary data.
+
 
 ## Convolutional Neural Networks
 
@@ -1116,7 +1131,7 @@ The five different categories of models vary aspects of the precipitation data:
 The original dimension of the precipitation data was too large for the CNN use case in this context, so four naive regions were created across the US based simply on geographical location. The simple average of these regions were then taken for each month and year to be predicted by the CNN. A visual representation of the four regions are shown in the plot below and are based off of a latitude of 38 and a longitude of -110.
 
 
-```{r, include = TRUE, out.width = "75%", fig.align='center', echo = FALSE}
+```{r, include = TRUE, out.width = "70%", fig.align='center', echo = FALSE}
 
 state_map = map_data("state")
 bmap = map_data("state")
@@ -1403,7 +1418,6 @@ print(xtable(df2, caption = "Test Accuracy Values"), include.rownames = FALSE)
 Although we had some models with low test MSE and fair to good accuracy, we were not able to beat the climatology baseline. The CNN models generally performed the best out of our models, with the random forest using the lagged data falling in between two of the CNN models' test MSE values.
 
 One issue that arose in the CCN analysis using the categorical precipitation was that the majority of locations have "normal" precipitation levels. Even when considering different class weights to account for the differences, it was difficult for the model to accurately predict the true categories. Future analysis could attempt to improve these results by investigating different values of $\tau$ in the lag models and devising a different methodology for categorizing precipitation, such as using different quantile values as the boundaries or using a method other than quantiles for categorizing the data.
-
 
 
 
