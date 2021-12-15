@@ -170,7 +170,7 @@ A similar procedure was followed for the KPCA except multiple kernels were also 
 
 Using these six components for clustering, seven indices suggest five as the best number of clusters, four suggest two clusters, and 3 suggest 6 or 20 clusters. So, five clusters seems to have the most support. The cluster structure here seems to break up the northern and eastern most sections of the pacific more with a bit of an alternating pattern, leaving a single cluster for the southwest area. The clustering can be seen in Figure \ref{fig:SSTClusters}.
 
-```{r eigenfigs, echo=FALSE, results='asis', fig.cap = '\\label{fig:eigenfig} Plot of singular values and Eigen values for real and randomized SST data set for PCA and KPCA respectively. The PCs of the start performing worse than random after component 33 for the PCA and 32 for KPCA.', fig.align = 'center', out.width='90%'}
+```{r eigenfigs, echo=FALSE, results='asis', fig.cap = '\\label{fig:eigenfig} Plot of singular values and Eigen values for real and randomized SST data set for PCA and KPCA respectively. The PCs of the start performing worse than random after component 33 for the PCA and 32 for KPCA.', fig.align = 'center', out.width='75%'}
 ## Suggests 33 PCs (97% Var)
 SSTsingvals <- melt(SSTsingvals, id.vars = 'Component', 
                     variable.name = 'Data', value.name = 'SingVal')
@@ -196,7 +196,7 @@ eigenplot <- ggplot(kpcaeig, aes(x = Component, y = EigenVal, color = Data)) +
 ggarrange(singvalplot, eigenplot, ncol = 1, nrow = 2)
 ```
 
-```{r SSTPC1, echo=FALSE, results='asis', fig.cap = '\\label{fig:SSTPC1s} Plot of PC1 from PCA and KPCA for SST data.', fig.align = 'center'}
+```{r SSTPC1, echo=FALSE, results='asis', fig.cap = '\\label{fig:SSTPC1s} Plot of PC1 from PCA and KPCA for SST data.', fig.align = 'center', out.width='65%'}
 ## Plot PC 1
 SSTSVDPC1 <- ggplot(SSTUD, aes(x = Longitude, y = Latitude, fill = PC1)) + 
              coord_fixed(ratio = 1) + geom_raster(alpha = 1) + ggform + 
@@ -401,7 +401,7 @@ The KPCA model that provided the largest dimensional reduction without having to
 
 Using the first four PCs from the KPCA the optimal number of clusters was assessed again. Seven indices suggest 12 clusters are appropriate and five indices suggest two or three clusters are appropriate. For the most part, the twelve clusters do break up the U.S. into specific regions. However, there are a few smaller areas that are split apart from the main cluster. For example, a portion of the Carolinas, Virginia, and Maryland area are clustered with the west and southwest region (Figure \ref{fig:PrecipClusters}).
 
-```{r eigenfigs2, echo=FALSE, results='asis', fig.cap = '\\label{fig:eigenfig2} Plot of singular values and Eigen values for real and randomized precipitation data set for PCA and KPCA respectively. The PCs of the start performing worse than random after component 33 for the PCA and 32 for KPCA.', fig.align = 'center', out.width='90%'}
+```{r eigenfigs2, echo=FALSE, results='asis', fig.cap = '\\label{fig:eigenfig2} Plot of singular values and Eigen values for real and randomized precipitation data set for PCA and KPCA respectively. The PCs of the start performing worse than random after component 33 for the PCA and 32 for KPCA.', fig.align = 'center', out.width='75%'}
 ## Suggests 26 PCs (97% Var)
 Precipsingvals <- melt(Precipsingvals, id.vars = 'Component', 
                     variable.name = 'Data', value.name = 'SingVal')
@@ -420,7 +420,7 @@ eigenplot <- ggplot(Pkpcaeig[c(1:400, 843:1243),], aes(x = Component, y = EigenV
 ggarrange(singvalplot, eigenplot, ncol = 1, nrow = 2)
 ```
 
-```{r PrecipPC1, echo=FALSE, results='asis', fig.cap = '\\label{fig:PrecipPC1s} Plot of PC1 from PCA and KPCA for precipitation data.', fig.align = 'center'}
+```{r PrecipPC1, echo=FALSE, results='asis', fig.cap = '\\label{fig:PrecipPC1s} Plot of PC1 from PCA and KPCA for precipitation data.', fig.align = 'center', out.width='65%'}
 bmap = map_data("state")
 colnames(bmap)[1:2] <- c('Longitude', 'Latitude')
 
