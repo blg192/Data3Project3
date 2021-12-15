@@ -543,9 +543,9 @@ PrecipLEmanifolds <- ggplot(data = data.frame(PLEout, PLEclustout), aes(x = PLEo
 ggarrange(PrecipSVDPCplot, PrecipKPCAPCplot, PrecipLLEdimplot, PrecipLEmanifolds, ncol = 2, nrow = 2)
 ```
 
-<!-- # ```{r cleanup2, include = FALSE} -->
-<!-- # remove(PrecipSVD, rand2decomp, Pkpca2, Pkpcarand2, Plleres, PLE, MonthlyPrecip, rand2) -->
-<!-- # ``` -->
+```{r cleanup2, include = FALSE}
+remove(PrecipSVD, rand2decomp, Pkpca2, Pkpcarand2, Plleres, PLE, MonthlyPrecip, rand2)
+```
 
 
 ## Methods
