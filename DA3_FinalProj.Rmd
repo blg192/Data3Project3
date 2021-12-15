@@ -905,14 +905,15 @@ There were two random forest models built: One with the standard data and the ot
 For both models, the training set consisted of all observations before 2017, and the testing set consisted of the observations from 2017--2018. The number of variables randomly sampled as candidates at each split was set to 2 for both models. For both models, all of the predictors have about equal importance. The values are so close that it seems all of the SST cluster averages contribute, which makes sense. The test MSE for the standard model was `r round(testmserfcont, 2)`, and the test MSE for the model with the lagged data was `r round(testmse_rflag, 2)`.
 
 
-## Ridge Regression
+## Ridge Regression and Lasso Regression
 
-```{r ridge1, echo=FALSE, cache=TRUE}
+```{r ridge1, echo=FALSE, cache=TRUE, eval=FALSE}
 # load 
 load("SST_clustwide.RData")
 load("Pdat_clustwide.RData")
 load("SST_longagg.RData")
 load("Pdat_longagg.RData")
+load("Pdat_clus.RData")
 
 ## row 829 is beginning of 2017
 train <- c(1:828)
@@ -924,141 +925,169 @@ all_test <- data.frame(Pdat_clustwide[-train,], SST_clustwide[-train,])
 all_long_test <- gather(all_test, landclus, landclusavg, 2:13)
 all_long_test <- all_long_test[-2]
 
-## using sst and precip
-set.seed(125498)
-m <- round(sqrt(ncol(all_long_train) - 2), 0)
-rf.sst <- randomForest(landclusavg ~ SeaCluster1 + SeaCluster2 + SeaCluster3 + SeaCluster4 + SeaCluster5,
-                       data = all_long_train,
-                       mtry = m,
-                       importance = TRUE)
-
+#################################### RIDGE REGRESSION #################################
 
 
 ##use cross validation to choose the tuning parameter
 ## actual data is too big so going to use a subset
 set.seed(597546)
-subset <- sample(1:nrow(all_long_train), 0.4*nrow(all_long_train))
-x <- model.matrix(landclusavg ~ ., all_long_train[subset, ])[, -1]
-y <- all_long_train[subset, ]$landclusavg
+y = as.matrix(all_long_train$landclusavg)
+x = as.matrix(all_long_train[,c(-1, -(7:8))])
 
-set.seed(897521)
-train <- sample(1:nrow(x), 0.5*nrow(x))
-test <- (-train)
-y_test <- y[test]
+xtes = as.matrix(all_long_test[,c(-1, -(7:8))])
+ytes = as.matrix(all_long_test$landclusavg)
 
 grid <- 10^seq(10, -2, length = 100)
-ridge_mod <- glmnet(x[train, ], y[train], alpha = 0,
+ridge_mod <- glmnet(x, y, alpha = 0,
                     lambda = grid, thresh = 1e-12)
 
 set.seed(12598)
-cv_out <- cv.glmnet(x[train, ], y[train], alpha = 0)
-#plot(cv_out)
+cv_out <- cv.glmnet(x, y, alpha = 0)
 bestlam <- cv_out$lambda.min
+
+
+ridge_pred <- predict(ridge_mod, s = bestlam,
+                      newx = xtes)
+
+test_mse_ridge <- mean((ridge_pred - ytes)^2)
+# test_mse_ridge
+
+
+precip_yyhat2 <- data.frame(all_long_test[, c(1, 7:8)], "yhat" = ridge_pred)
+for(i in 1:nrow(precip_yyhat2)){
+  if(precip_yyhat2$landclus[i] == "LandCluster1"){
+    precip_yyhat2$landclus[i] <- 1
+  } else if(precip_yyhat2$landclus[i] == "LandCluster2"){
+    precip_yyhat2$landclus[i] <- 2
+  } else if(precip_yyhat2$landclus[i] == "LandCluster3"){
+    precip_yyhat2$landclus[i] <- 3
+  } else if(precip_yyhat2$landclus[i] == "LandCluster4"){
+    precip_yyhat2$landclus[i] <- 4
+  } else if(precip_yyhat2$landclus[i] == "LandCluster5"){
+    precip_yyhat2$landclus[i] <- 5
+  } else if(precip_yyhat2$landclus[i] == "LandCluster6"){
+    precip_yyhat2$landclus[i] <- 6
+  } else if(precip_yyhat2$landclus[i] == "LandCluster7"){
+    precip_yyhat2$landclus[i] <- 7
+  } else if(precip_yyhat2$landclus[i] == "LandCluster8"){
+    precip_yyhat2$landclus[i] <- 8
+  } else if(precip_yyhat2$landclus[i] == "LandCluster9"){
+    precip_yyhat2$landclus[i] <- 9
+  } else if(precip_yyhat2$landclus[i] == "LandCluster10"){
+    precip_yyhat2$landclus[i] <- 10
+  } else if(precip_yyhat2$landclus[i] == "LandCluster11"){
+    precip_yyhat2$landclus[i] <- 11
+  } else{
+    precip_yyhat2$landclus[i] <- 12
+  }
+}
+precip_yyhat2$landclus <- as.factor(precip_yyhat2$landclus)
+
+## limit long_Pdat to the test observations
+long_Pdat_test <- long_Pdat[min(which(long_Pdat$Date == "Jan2017")):nrow(long_Pdat),]
+
+all_precip_yyhat2 <- merge.data.frame(long_Pdat_test, precip_yyhat2, 
+                                     by.x = c(4, 3), by.y = 1:2)
+
+## save data
+save(all_precip_yyhat2, file = "all_precip_yyhat2.RData")
+
+
 
 ```
 
 ```{r ridge2, echo=FALSE, cache=TRUE}
 
-ridge_pred <- predict(ridge_mod, s = bestlam,
-                      newx = x[test, ])
+load("all_precip_yyhat2.RData")
+testmse_ridge <- mean((all_precip_yyhat2$s1 - all_precip_yyhat2$Precipitation)^2)
 
-test_mse_ridge <- mean((ridge_pred - y_test)^2)
 
 ```
 
 
-## Lasso Regression
-
-```{r lasso1, echo=FALSE, cache=TRUE}
+```{r lasso1, echo=FALSE, cache=TRUE, eval=FALSE}
 
 set.seed(1)
 grid <- 10^seq(10, -2, length = 100)
-lasso_mod <- glmnet(x[train, ], y[train], alpha = 1,
+lasso_mod <- glmnet(x, y, alpha = 1,
                     lambda = grid, thresh = 1e-12)
 
 set.seed(12598)
-cv_out <- cv.glmnet(x[train, ], y[train], alpha = 1)
-
+cv_out <- cv.glmnet(x, y, alpha = 1)
 bestlam <- cv_out$lambda.min
 
+lasso_pred <- predict(lasso_mod, s = bestlam,
+                      newx = xtes)
 
+
+test_mse_lasso <- mean((ridge_pred - ytes)^2)
+# test_mse_lasso
+
+
+precip_yyhat3 <- data.frame(all_long_test[, c(1, 7:8)], "yhat" = lasso_pred)
+for(i in 1:nrow(precip_yyhat3)){
+  if(precip_yyhat3$landclus[i] == "LandCluster1"){
+    precip_yyhat3$landclus[i] <- 1
+  } else if(precip_yyhat3$landclus[i] == "LandCluster2"){
+    precip_yyhat3$landclus[i] <- 2
+  } else if(precip_yyhat3$landclus[i] == "LandCluster3"){
+    precip_yyhat3$landclus[i] <- 3
+  } else if(precip_yyhat3$landclus[i] == "LandCluster4"){
+    precip_yyhat3$landclus[i] <- 4
+  } else if(precip_yyhat3$landclus[i] == "LandCluster5"){
+    precip_yyhat3$landclus[i] <- 5
+  } else if(precip_yyhat3$landclus[i] == "LandCluster6"){
+    precip_yyhat3$landclus[i] <- 6
+  } else if(precip_yyhat3$landclus[i] == "LandCluster7"){
+    precip_yyhat3$landclus[i] <- 7
+  } else if(precip_yyhat3$landclus[i] == "LandCluster8"){
+    precip_yyhat3$landclus[i] <- 8
+  } else if(precip_yyhat3$landclus[i] == "LandCluster9"){
+    precip_yyhat3$landclus[i] <- 9
+  } else if(precip_yyhat3$landclus[i] == "LandCluster10"){
+    precip_yyhat3$landclus[i] <- 10
+  } else if(precip_yyhat3$landclus[i] == "LandCluster11"){
+    precip_yyhat3$landclus[i] <- 11
+  } else{
+    precip_yyhat3$landclus[i] <- 12
+  }
+}
+precip_yyhat3$landclus <- as.factor(precip_yyhat3$landclus)
+
+## limit long_Pdat to the test observations
+long_Pdat_test <- long_Pdat[min(which(long_Pdat$Date == "Jan2017")):nrow(long_Pdat),]
+
+all_precip_yyhat3 <- merge.data.frame(long_Pdat_test, precip_yyhat3, 
+                                     by.x = c(4, 3), by.y = 1:2)
+
+## save data
+save(all_precip_yyhat3, file = "all_precip_yyhat3.RData")
 
 ```
 
 ```{r lasso2, echo=FALSE, cache=TRUE}
 
-lasso_pred <- predict(lasso_mod, s = bestlam,
-                      newx = x[test, ])
-
-test_mse_lasso <- mean((lasso_pred - y_test)^2)
+load("all_precip_yyhat3.RData")
+testmse_lasso <- mean((all_precip_yyhat3$s1 - all_precip_yyhat3$Precipitation)^2)
 
 ```
 
 
-## Principal Component Regression (PCR)
+The regularization method in this study will use the clustering for land and sea resulted from KPCA. From the KPCA, the most appropriate have five clusters for SST data and twelve clusters are appropriate for Precipitation data. We used the average precipitation data in given month_year as response and average SST for each sea cluster in given_month as predictors. We set the training set using all the data before 2017 (Jan1948 to Dec2016) and testing set using all data after 2017 (Jan2017 to Feb2018).
+The Ridge regression produce the coefficient estimates that fit the data well by making the RSS small and has the effect of shrinking the estimates toward zero. The ten-fold cross validation is used to choose the tuning parameter $\lambda$. The value of $\lambda$ that results in the smallest cross validation error is 3.15. The test RMSE for Ridge Regression is 4.3320.
 
-```{r pcr1, echo=FALSE, cache=TRUE}
-
-pcr.fit <- pcr(landclusavg ~ SeaCluster1 + SeaCluster2 + SeaCluster3 + SeaCluster4 + SeaCluster5,
-               data = all_long_train,
-               scale = TRUE,
-               validation = "CV")
-
-
-
-#validationplot(pcr.fit , val.type = "MSEP")
-
-
-
-```
-
-```{r pcr2, echo=FALSE, cache=TRUE}
-#the lowest cross validation error at M=2
-pcr.pred <- predict(pcr.fit, newdata = (all_long_test[,c(-1, -7)]), ncomp = 2)
-
-testmse_PCRcont <- mean((pcr.pred - all_long_test[, 8])^2)
-```
-
-
-## Partial Least Squares (PLS)
-
-```{r pls1, echo=FALSE, cache=TRUE}
-
-pls.fit <- plsr(landclusavg ~ SeaCluster1 + SeaCluster2 + SeaCluster3 + SeaCluster4 + SeaCluster5,
-                data = all_long_train,
-                scale = TRUE,
-                validation = "CV")
-
-#summary(pls.fit)
-
-#validationplot(pls.fit , val.type = "MSEP")
-
-```
-
-```{r pls2, echo=FALSE, cache=TRUE}
-#the lowest cross validation error at M=1
-pls.pred <- predict(pls.fit, newdata = (all_long_test[,c(-1, -7)]), ncomp = 1)
-
-testmse_PLScont <- mean((pls.pred - all_long_test[, 8])^2)
-
-```
+The Lasso Regression has similar behavior to the ridge regression. The cross validation was used to find the best $\lambda$ 0.0116. The test MSE for the Lasso Regression is 4.3562. Both Ridge and Lasso regression produce not significantly different test MSE. Even though the test MSE for lasso regression is a bit higher than ridge regression, the lasso performs variable selection like best subset selection and it can be more interpretable than ridge regression. From the resulted test MSE, it seems that the use of ridge and lasso regression is not the most effective way to predict precipitation data. However, ridge regression and lasso regression can be more computationally feasible than subset selection method.
 
 
 
 ## GAM Regression on Continuous Data
 
 ```{r gam, echo=FALSE, cache=TRUE, eval=FALSE}
-## BenREADME: I turned this off for now because I am not sure where the training data is coming from.
-gam.1<- gam(Precipitation~s(SeaCluster1,2) +SeaCluster2 + SeaCluster3 + SeaCluster4 + SeaCluster5, data = train)
+gam.1<- gam(Precipitation~s(SeaCluster1,2) +SeaCluster2 + SeaCluster3 + SeaCluster4 + SeaCluster5, data = Lag.dat)
 
 ```
 
 The generalized linear approach proved to be less than ideal. The idea of approaching the data using GAM was the nonlinear relationships between the individual clusters and the precipitation data would be modeled while maintaining the additive nature of a linear model. Using the KPCA regions with continuous data as the response, we predicted the precipitation at a given time $\tau$ given the SST clustered data at the same time $\tau$. I began by running the GAM model without adjusting for nonlinearity for each SST cluster, to find that all of the variables were significant linearly, though barely so for SeaCluster3. Knowing this, I wanted to experiment with the nonlinearity between some of the clusters and the response, therefore I opted for smoothing splines on the first two SST clusters with degrees of freedom 2. SeaCluster1 and SeaCluster2 both proved to be significant at with 2 degrees of freedom. 
-
-The GAM model proved to predict precipitation levels using SST data with very low accuracy. Against the 2017/18 test data, the best GAM model obtained an MSE of 8.5, with a smoothing spline on the first cluster. The following plot models the nonlinear relationship between the first SST cluster and the precipitation:
-
-![](SST1.png)
-
 
 ## Convolutional Neural Networks
 
@@ -1329,13 +1358,12 @@ kable(tibble(
 
 
 
-
-
 # Results
 
 ```{r echo=FALSE, results='asis'}
 MSE_CNN_naive_cont = 3.01
 MSE_KPCA_cont = 2.47
+GAM_Regression= 6.312
 
 df <- data.frame("Model" = c("Baseline: Climatology",
                              "Baseline: Persistence",
@@ -1343,11 +1371,12 @@ df <- data.frame("Model" = c("Baseline: Climatology",
                              "Random Forest, Lagged Data",
                              "Ridge Regression",
                              "Lasso Regression",
+                             "GAM Regression",
                              "CNN: Naive Regions, Continuous Temp",
                              "CNN: KPCA Regions, Continuous Temp"),
                  "Test MSE" = c(MSE_clim_avg, testmsepers, testmserfcont,
                                 testmse_rflag,
-                                test_mse_ridge, test_mse_lasso,
+                                testmse_ridge, testmse_lasso,GAM_Regression,
                                 MSE_CNN_naive_cont, MSE_KPCA_cont))
 
 print(xtable(df, caption = "Test MSE Values"), include.rownames = FALSE)
@@ -1358,6 +1387,7 @@ print(xtable(df, caption = "Test MSE Values"), include.rownames = FALSE)
 Accuracy_climatology = 0.712
 Accuracy_naive_cat_lag = 0.553
 Accuracy_KPCA_cat = 0.347
+
 
 df2 <- data.frame("Model" = c("Baseline: Climatology",
                               "CNN: Naive Regions, Categorical Temp",
