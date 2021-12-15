@@ -382,7 +382,7 @@ test_mse_ridge
 
 ## LASSO REGRESSION
 
-```{r ridge1, echo=FALSE, cache=TRUE}
+```{r lasso1, echo=FALSE, cache=TRUE}
 
 set.seed(1)
 grid <- 10^seq(10, -2, length = 100)
@@ -398,7 +398,7 @@ bestlam
 
 ```
 
-```{r ridge2, echo=FALSE, cache=TRUE}
+```{r lasso2, echo=FALSE, cache=TRUE}
 
 lasso_pred <- predict(lasso_mod, s = bestlam,
                       newx = x[test, ])
@@ -768,3 +768,7 @@ print(xtable(df2, caption = "Test Accuracy Values"), include.rownames = FALSE)
 
 
 One issue that arose in the CCN analysis using the categorical precipitation was that the majority of locations have "normal" precipitation levels. Even when considering different class weights to account for the differences, it was difficult for the model to accurately predict the true categories. Future analysis could attempt to improve these results by investigating different values of $\tau$ in the lag models, devising a different methodology for categorizing precipitation, **ANYTHING ELSE??**
+
+
+
+
