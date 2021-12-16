@@ -31,6 +31,7 @@ library(BART)
 library(xtable)
 library(pls)
 library(gam) ## GAMs
+library(DiagrammeR)
 options(xtable.comment = FALSE)
 
 
@@ -59,6 +60,111 @@ load("precip_region_cont_df_wide.RData")
 load("data_in_dfs.RData")
 
 ```
+
+
+## Data Exploration
+
+
+```{r, echo = FALSE, include = FALSE}
+
+state_map = map_data("state")
+bmap = map_data("state")
+
+
+# Fancy plots
+precipPlot = ggplot() +
+  coord_fixed(ratio = 1) +
+  geom_raster(data = Pdat_df,
+              aes(x = long, y = lat, fill = May2017),
+              alpha = 1) +
+  geom_polygon(
+    data = bmap,
+    aes(x = long, y = lat, group = group),
+    inherit.aes = F,
+    colour = 'black',
+    fill = NA,
+    lwd = 0.5
+  ) +
+  scale_fill_gradientn(
+    na.value = "white",
+    # Limits need to be updated accordingly
+    limits = c(min(Pdat_df$May2017) - 0.5, 
+               max(Pdat_df$May2017) + 0.5),
+    colours = c("blue", "green", "orange", "yellow")
+  ) +
+  theme_classic() + 
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank()
+  ) + 
+  labs(x = "Longitude",
+       y = "Latitude",
+       fill = "Precipication \nUnits", 
+       title = "May 2017 \nObserved Precipitation")
+
+
+SSTPlot = ggplot() +
+  coord_fixed(ratio = 1) +
+  geom_raster(data = SST_df,
+              aes(x = long, y = lat, fill = May2017),
+              alpha = 1) +
+  scale_fill_gradientn(
+    na.value = "white",
+    # Limits need to be updated accordingly
+    limits = c(min(Pdat_df$May2017) - 0.5, 
+               max(Pdat_df$May2017) + 0.5),
+    colours = c("blue", "green", "orange", "yellow")
+  ) +
+  theme_classic() + 
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank()
+  ) + 
+  labs(x = "Longitude",
+       y = "Latitude",
+       fill = "Temperature \nUnits",
+       title = "May 2017 \nObserved SST")
+
+
+```
+
+
+Data Domain:
+
+  - January 1948 - February 2018
+
+Training Data: January 1948 - December 2016
+
+Testing Data: January 2017 - February 2018
+
+
+::: columns
+
+:::: column
+
+
+```{r, include = TRUE, echo = FALSE}
+precipPlot
+```
+
+
+
+::::
+
+:::: column
+
+```{r, include = TRUE, echo = FALSE}
+SSTPlot
+```
+
+
+::::
+
+:::
+
+
 
 
 ## Dimension Reduction and Clustering
@@ -753,11 +859,314 @@ testmse_lasso <- mean((all_precip_yyhat3$s1 - all_precip_yyhat3$Precipitation)^2
 ```
 
 
+- Using the clustering results based on KPCA
+  - 12 regions on the precipitation data
+  - 5 regions on the SST data
+- Training set: January 1948 – December 2016
+- Testing set: January 2017 – February 2018
+- Tuning parameter: 10-folds cross validation
+
+- Ridge Regression
+  - Tuning parameter $\lambda$ = 3.15
+  - Test MSE = `r round(testmse_ridge, 2)`
+
+- Lasso Regression
+  - Tuning parameter $\lambda$ = 0.012
+  - Test MSE = `r round(testmse_lasso, 2)`
+
+
 ## GAM Regression on Continuous Data
+
+-Used 12 regional KPCA clusters for precipitation and 5 SST clusters
+-Contemporary and with a 6 month lag
+-Smoothing spline on second cluster of 2nd degree
+-Training/Test set same as Lasso/Ridge 
+-Contemporary MSE: 8.5
+-6 month Lag: 6.31
 
 
 ## Convolutional Neural Networks
 
+
+```{r, include = FALSE, out.width = "75%", fig.align='center', echo = FALSE}
+state_map = map_data("state")
+bmap = map_data("state")
+
+naiveRegion = ggplot() +
+  coord_fixed(ratio = 1) +
+  geom_hline(yintercept = 38, lty = "dashed", color = "blue", size = 1) + 
+  geom_vline(xintercept = -95, lty = "dashed", color = "blue", size = 1) + 
+  annotate("text", x = -110, y = 45, label = "NW", size = 20, color = "blue") + 
+  annotate("text", x = -80, y = 45, label = "NE", size = 20, color = "blue") + 
+  annotate("text", x = -110, y = 30, label = "SW", size = 20, color = "blue") + 
+  annotate("text", x = -80, y = 30, label = "SE", size = 20, color = "blue") + 
+  geom_polygon(
+    data = bmap,
+    aes(x = long, y = lat, group = group),
+    inherit.aes = F,
+    colour = 'black',
+    fill = NA,
+    lwd = 0.5
+  ) + 
+  labs(fill = "", x = "Longitude", y = "Latitude", title = "Naive Regions") +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(colour = "black",
+                                fill = NA,
+                                size = 0.5),
+    panel.background = element_blank()
+  )
+
+KPCAregion = ggplot() +
+  coord_fixed(ratio = 1) +
+  geom_raster(data = precip_region_cont_df_wide, aes(
+    x = long,
+    y = lat,
+    fill = Cluster
+  ), alpha = 1) +
+  geom_polygon(
+    data = bmap,
+    aes(x = long, y = lat, group = group),
+    inherit.aes = F,
+    colour = 'black',
+    fill = NA,
+    lwd = 0.5
+  ) + 
+  labs(fill = "Region", x = "Longitude", y = "Latitude", title = "KPCA Regions") +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(colour = "black",
+                                fill = NA,
+                                size = 0.5),
+    panel.background = element_blank()
+  )
+
+gridExtra::grid.arrange(naiveRegion, KPCAregion, ncol = 2)
+
+
+```
+
+
+
+ - Naive regions based simply on a latitude of 38 and a longitude of -110
+ - KPCA regions identical to those described earlier
+
+
+::: columns
+
+:::: column
+
+
+```{r, include = TRUE, echo = FALSE}
+naiveRegion
+```
+
+
+
+::::
+
+:::: column
+
+```{r, include = TRUE, echo = FALSE}
+KPCAregion
+```
+
+
+::::
+
+:::
+
+
+
+## Convolutional Neural Networks
+
+- 15 models considered in total:
+
+\includegraphics[width=10cm]{CNNflowchart.png}
+
+
+## Convolutional Neural Networks Model 1
+
+Predict Average Temperature From Naive Regions
+
+- MSE Regions: 0.726
+- MSE Full Data: 3.01
+
+```{r include=TRUE, echo = FALSE, fig.height=4}
+
+kable(tibble(
+  Options = c(
+    "Convolution Layer",
+    "Flatten",
+    "Batch Normalization",
+    "Dense Layer",
+    "Batch Normalization",
+    "Dense Layer",
+    "Batch Normalization",
+    "Dense Layer",
+    "Epochs",
+    "Batch Size",
+    "Optimizer"
+  ),
+  `Model` = c(
+    "filters = 32; kernal size = 5; activation = ReLU",
+    "---",
+    "---",
+    "units = 800; activation = ReLU",
+    "---",
+    "units = 400; activation = ReLU",
+    "---",
+    "units = 4; activation = ReLU",
+    10,
+    32,
+    "Adam; learning rate = 0.01"
+  )
+)) %>%
+  kableExtra::kable_styling(font_size = 7) 
+
+```
+
+
+## Convolutional Neural Networks Model 2
+
+Predict Modal Temperature Category From Naive Regions with 6-Month Lag
+
+- Accuracy Regions: 0.713
+- Accuracy Full Data: 0.553
+
+
+```{r include=TRUE, echo = FALSE, fig.height=6}
+
+kable(tibble(
+  Options = c(
+    "Convolution Layer",
+    "Dropout",
+    "Flatten",
+    "Dense Layer",
+    "Dropout",
+    "Dense Layer",
+    "Dropout",
+    "Dense Layer",
+    "Dropout",
+    "Dense Layer",
+    "Epochs",
+    "Batch Size",
+    "Optimizer"
+  ),
+  `Model` = c(
+    "filters = 32; kernal size = 5; activation = ReLU",
+    "10%",
+    "---",
+    "units = 100; activation = ReLU",
+    "30%",
+    "units = 50; activation = ReLU",
+    "30%",
+    "units = 25; activation = ReLU",
+    "40%",
+    "units = 4; activation = ReLU",
+    30,
+    32,
+    "Adam; learning rate = 0.01"
+  )
+)) %>%
+  kableExtra::kable_styling(font_size = 7) 
+  
+  
+```
+
+
+## Convolutional Neural Networks Model 3
+
+Predict Average Temperature From KPCA Regions
+
+- MSE Regions: 2.712
+- MSE Full Data: 2.47
+
+```{r include=TRUE, echo = FALSE}
+
+kable(tibble(
+  Options = c(
+    "Convolution Layer",
+    "Dropout",
+    "Flatten",
+    "Dense Layer",
+    "Dropout",
+    "Dense Layer",
+    "Dropout",
+    "Dense Layer",
+    "Dropout",
+    "Dense Layer",
+    "Epochs",
+    "Batch Size",
+    "Optimizer"
+  ),
+  `Model` = c(
+    "filters = 32; kernal size = 5; activation = ReLU",
+    "10%",
+    "---",
+    "units = 100; activation = ReLU",
+    "30%",
+    "units = 50; activation = ReLU",
+    "30%",
+    "units = 25; activation = ReLU",
+    "40%",
+    "units = 4; activation = ReLU",
+    30,
+    32,
+    "Adam; learning rate = 0.01"
+  )
+)) %>%
+  kableExtra::kable_styling(font_size = 7) 
+  
+  
+```
+
+
+
+## Convolutional Neural Networks Model 4
+
+Predict Modal Temperature Category From KPCA Regions
+
+- Accuracy Regions: 0.565
+- Accuracy Full Data: 0.347
+
+
+```{r include=TRUE, echo = FALSE}
+
+kable(tibble(
+  Options = c(
+    "Convolution Layer",
+    "Flatten",
+    "Batch Normalization",
+    "Dense Layer",
+    "Dropout",
+    "Batch Normalization",
+    "Dense Layer",
+    "Dense Layer",
+    "Epochs",
+    "Batch Size",
+    "Optimizer"
+  ),
+  `Model` = c(
+    "filters = 32; kernal size = 5; activation = ReLU",
+    "---",
+    "---",
+    "units = 800; activation = ReLU",
+    "20%",
+    "---",
+    "units = 400; activation = ReLU",
+    "units = 4; activation = ReLU",
+    10,
+    32,
+    "Adam; learning rate = 0.01; decay = 0.01"
+  )
+)) %>%
+  kableExtra::kable_styling(font_size = 7) 
+
+
+```
 
 
 ## Results
@@ -800,3 +1209,16 @@ df2 <- data.frame("Model" = c("Baseline: Climatology",
 print(xtable(df2, caption = "Test Accuracy Values"), include.rownames = FALSE)
 ```
 
+
+## Final Thoughts
+
+Conclusions
+
+ - Best model overall was CNN with KPCA regions
+ 
+Future Directions
+
+ - Consider other methods for categorizing temperature
+   - Different quantiles
+   - Methods other than quantiles (e.g. standard deviations)
+ - Consider lag values other than 6 months
