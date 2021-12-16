@@ -877,12 +877,12 @@ testmse_lasso <- mean((all_precip_yyhat3$s1 - all_precip_yyhat3$Precipitation)^2
 
 ## GAM Regression on Continuous Data
 
--Used 12 regional KPCA clusters for precipitation and 5 SST clusters
--Contemporary and with a 6 month lag
--Smoothing spline on second cluster of 2nd degree
--Training/Test set same as Lasso/Ridge 
--Contemporary MSE: 8.5
--6 month Lag: 6.31
+- Used 12 regional KPCA clusters for precipitation and 5 SST clusters
+- Contemporary and with a 6 month lag
+- Smoothing spline on second cluster of 2nd degree
+- Training/Test set same as Lasso/Ridge 
+- Contemporary MSE: 8.5
+- 6 month Lag: 6.31
 
 
 ## Convolutional Neural Networks
