@@ -59,11 +59,6 @@ load("precip_region_cont_df_wide.RData")
 load("data_in_dfs.RData")
 
 ```
-## Introduction
-
-- This study examines the relationship between sea surface temperatures (henceforth SST) patterns in the tropical Pacific Ocean and precipitation over North America
-- We wanted to predict precipitation levels based on SST, both contemporaneously and on a future-time basis
-- Methods used include: dimension reduction by principal components analysis, LLE, and Laplacian Eigenmaps, persistence and climatology baseline models, random forests, ridge regression, lasso regression, GAM regression, and convolutional neural networks
 
 
 ## Dimension Reduction and Clustering
@@ -571,19 +566,20 @@ remove(PrecipSVD, rand2decomp, Pkpca2, Pkpcarand2, Plleres, PLE, MonthlyPrecip, 
 ```
 
 
-## Methods
-
-- We created baseline models with climatology predictions and a persistence model
-
 ## Baseline: Climatology Model
+
+- Takes historical average for a given month and uses that as the prediction for that month in the future
+- Two climatology models were built with this data: 
+  - One using the continuous precipitation values
+  - One using the categorical precipitation values
+- MSE of the continuous model was 1.494 and the accuracy categorical model was 0.712
+- These values would need to be improved by other models described below to be considered as a replacement
 
 ```{r clim_mod, cache=TRUE, include=FALSE}
 load("MSE_clim.RData")
 MSE_clim_avg = mean(MSE_clim)
 
 ```
-
-
 
 ```{r clim_mod_plot, echo=FALSE, eval = FALSE}
 state_map = map_data("state")
@@ -707,31 +703,11 @@ testmsepers <- testmse_pers
 
 ```
 
-## Baseline: Persistence Model
+- Predicts that the precipitation for a location on a given date will be equal to the recorded precipitation at the same location $\tau$ months previously
+- When $\tau = 6$ and the data are limited to the data from 2017--2018 the test mse was `r round(testmsepers, 2)`
 
-```{r pers_mod_plot, echo=FALSE, cache=TRUE, out.width="70%", fig.align='center'}
-## It seems MSE increases as tau approaches the 6 months mark and decreases 
-## as it approaches the 12 month mark
-# n <- 24
-# msemat <- matrix(c(1:n, rep(NA, n)), nrow = n, ncol = 2, byrow = FALSE)
-# colnames(msemat) <- c("tau", "mse")
-# for(i in 1:n){
-#   preddf <- predprecip(Pdat_df, i)
-#   msemat[i, 2] <- testmse(Pdat_df, preddf)
-# }
-## above saved in this file
-load("pers_msemat.RData")
 
-ggplot(data=as.data.frame(msemat), aes(x=tau, y=mse, group=1)) +
-  geom_line()+
-  geom_point() +
-  xlab("tau: Number of Months Previous to Prediction") +
-  ylab("Test MSE") +
-  labs(title = "Test MSE for Varying Values of tau")
-
-```
-
-# Random Forest
+## Random Forest
 
 ```{r rf2, echo=FALSE, cache=TRUE}
 # rf.sst$importance
@@ -753,7 +729,13 @@ testmse_rflag <- mean((all_yyhat_lag$yhat - all_yyhat_lag$Precipitation)^2)
 
 ```
 
-# Ridge Regression and Lasso Regression
+- Model 1 used averages of the SST KPCA clusters for given dates were used to predict the averages of the precipitation KPCA clusters for the same dates
+- Model 2 used averages of the SST KPCA clusters for given dates were used to predict the averages of the precipitation KPCA clusters 6 months after a given date
+- The number of variables randomly sampled as candidates at each split was set to 2 for both models
+- The test MSE for model 1 was `r round(testmserfcont, 2)`, and the test MSE for model 2 was `r round(testmse_rflag, 2)`
+
+
+## Ridge Regression and Lasso Regression
 
 ```{r ridge2, echo=FALSE, cache=TRUE}
 
@@ -771,7 +753,50 @@ testmse_lasso <- mean((all_precip_yyhat3$s1 - all_precip_yyhat3$Precipitation)^2
 ```
 
 
+## GAM Regression on Continuous Data
+
+
+## Convolutional Neural Networks
+
+
 
 ## Results
 
-## Conclusions
+```{r echo=FALSE, results='asis'}
+MSE_CNN_naive_cont = 3.01
+MSE_KPCA_cont = 2.47
+GAM_Regression= 6.312
+
+df <- data.frame("Model" = c("Baseline: Climatology",
+                             "Baseline: Persistence",
+                             "Random Forest",
+                             "Random Forest, Lagged Data",
+                             "Ridge Regression",
+                             "Lasso Regression",
+                             "GAM Regression",
+                             "CNN: Naive Regions, Continuous Temp",
+                             "CNN: KPCA Regions, Continuous Temp"),
+                 "Test MSE" = c(MSE_clim_avg, testmsepers, testmserfcont,
+                                testmse_rflag,
+                                testmse_ridge, testmse_lasso,GAM_Regression,
+                                MSE_CNN_naive_cont, MSE_KPCA_cont))
+
+print(xtable(df, caption = "Test MSE Values"), include.rownames = FALSE)
+```
+
+
+```{r echo=FALSE, results='asis'}
+Accuracy_climatology = 0.712
+Accuracy_naive_cat_lag = 0.553
+Accuracy_KPCA_cat = 0.347
+
+
+df2 <- data.frame("Model" = c("Baseline: Climatology",
+                              "CNN: Naive Regions, Categorical Temp",
+                              "CNN: KPCA Regions, Categorical Temp"),
+                  "Test Accuracy" = c(Accuracy_climatology, 
+                                      Accuracy_naive_cat_lag, Accuracy_KPCA_cat))
+
+print(xtable(df2, caption = "Test Accuracy Values"), include.rownames = FALSE)
+```
+
